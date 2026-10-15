@@ -1,0 +1,488 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gradient Descent, by Hand</title>
+<meta name="description" content="Logistic regression trained by gradient descent on real breast-tumor measurements, with every number shown and checkable.">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Newsreader:ital,opsz,wght@0,6..72,400;0,6..72,500;1,6..72,400&family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" integrity="sha384-n8MVd4RsNIU0tAv4ct0nTaAbDJwPJzDEaqSD1odI+WdtXRGWt2kTvGFasHpSy3SV" crossorigin="anonymous">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js" integrity="sha384-XjKyOOlGwcjNTAIQHIpgOno0Hl1YQqzUOEleOLALmuqehneUG+vnGctmUb0ZY0l8" crossorigin="anonymous"></script>
+<style>
+/* A real thing beside the math under it. Rust = malignant / forward values, slate = benign / pulls. Light only. */
+:root {
+  --paper: #f3eee6; --surface: #fbf8f3; --ink: #2a2622; --muted: #6f665c; --line: #d8cdbf;
+  --rust: #b0502a; --rust-soft: #f2dfd2; --slate: #3b6788; --slate-soft: #dde8f0;
+  --display: "Newsreader", "Iowan Old Style", Georgia, serif;
+  --body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  color-scheme: light;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html { background: var(--paper); }
+body { margin: 0; color: var(--ink); font: 17px/1.6 var(--body); padding: 0 max(16px, env(safe-area-inset-left)) 80px; }
+.wrap { max-width: 1060px; margin: 0 auto; }
+h1, h2 { font-family: var(--display); font-weight: 400; margin: 0; line-height: 1.1; text-wrap: balance; }
+h1 { font-size: clamp(2.2rem, 5vw, 3.3rem); }
+h2 { font-size: clamp(1.5rem, 3vw, 2rem); }
+p { margin: 0; }
+.muted { color: var(--muted); }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+:focus-visible { outline: 2px solid var(--rust); outline-offset: 3px; }
+.mal { color: var(--rust); } .ben { color: var(--slate); }
+
+header { padding-block: 44px 28px; display: grid; gap: 14px; max-width: 44em; }
+header p { color: var(--muted); font-size: 1.08rem; }
+
+section { border-top: 1px solid var(--line); padding-block: 36px 8px; display: grid; gap: 18px; }
+.head { display: grid; gap: 8px; max-width: 46em; }
+.kicker { font: 600 .74rem/1 var(--body); letter-spacing: .12em; text-transform: uppercase; color: var(--muted); }
+
+.win { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; overflow: hidden; min-width: 0; }
+.win > .bar { display: flex; align-items: center; gap: 10px; padding: 9px 14px; border-bottom: 1px solid var(--line); font: 500 .85rem var(--body); }
+.win > .bar .dot { width: 8px; height: 8px; border-radius: 50%; background: var(--rust); }
+.win > .bar .grow { flex: 1; }
+.win > .in { padding: 14px 16px; display: grid; gap: 12px; min-width: 0; }
+.cols { display: grid; grid-template-columns: 1.1fr 1fr; gap: 16px; align-items: start; }
+.cols > * { min-width: 0; }
+@media (max-width: 900px) { .cols { grid-template-columns: 1fr; } }
+
+svg { width: 100%; height: auto; display: block; }
+.axis { stroke: var(--line); fill: none; }
+.grid { stroke: var(--line); stroke-dasharray: 2 4; fill: none; }
+.tick { fill: var(--muted); font: 11px var(--mono); }
+.curve { stroke: var(--ink); stroke-width: 2.4; fill: none; }
+.half { stroke: var(--muted); stroke-dasharray: 4 4; fill: none; }
+.bound { stroke: var(--rust); stroke-width: 1.5; stroke-dasharray: 5 4; }
+.boundlbl { fill: var(--rust); font: 500 12px var(--mono); }
+.pt-m { fill: var(--rust); } .pt-b { fill: var(--slate); }
+.pt { stroke: var(--surface); stroke-width: 2; cursor: pointer; }
+.pt.sel { stroke: var(--ink); stroke-width: 3; }
+.note { fill: var(--muted); font: italic 13px var(--display); }
+.ball { fill: var(--rust); stroke: var(--surface); stroke-width: 3; }
+.tan { stroke: var(--slate); stroke-width: 2.5; stroke-linecap: round; }
+.spark { stroke: var(--rust); stroke-width: 2; fill: none; }
+.sparkfill { fill: var(--rust-soft); }
+
+.ctrl { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; }
+.ctrl label { display: flex; gap: 10px; align-items: center; color: var(--muted); font-size: .9rem; flex: 1 1 220px; }
+.ctrl input[type=range] { flex: 1; min-width: 0; accent-color: var(--rust); }
+.btn { font: 500 .9rem var(--body); padding: 7px 13px; border-radius: 8px; border: 1px solid var(--line); background: var(--paper); color: var(--ink); cursor: pointer; }
+.btn:hover { border-color: var(--rust); }
+.btn.primary { background: var(--rust); color: var(--surface); border-color: var(--rust); }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 9px; overflow: hidden; }
+.seg button { font: 500 .85rem var(--body); padding: 6px 12px; border: 0; background: var(--paper); color: var(--ink); cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--surface); }
+
+.tw { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font: 13px var(--mono); font-variant-numeric: tabular-nums; }
+th, td { padding: 6px 8px; text-align: right; border-bottom: 1px solid var(--line); white-space: nowrap; }
+th { font: 600 .68rem var(--body); letter-spacing: .06em; text-transform: uppercase; color: var(--muted); vertical-align: bottom; }
+th small { display: block; font: 400 .72rem var(--mono); letter-spacing: 0; text-transform: none; }
+td:first-child, th:first-child { text-align: left; }
+tbody tr { cursor: pointer; }
+tbody tr:hover td { background: var(--paper); }
+tr.sel td { background: var(--rust-soft) !important; }
+tr.more td { color: var(--muted); font-style: italic; cursor: default; text-align: left; }
+tr.tot td { border-top: 2px solid var(--ink); border-bottom: 0; font-weight: 500; cursor: default; background: none !important; }
+td.g { color: var(--slate); }
+
+.lines { display: grid; gap: 2px; }
+.ln { display: grid; gap: 2px; padding: 8px 0; border-bottom: 1px dashed var(--line); }
+.ln:last-child { border-bottom: 0; }
+.ln > * { min-width: 0; }
+.ln .k { font: 600 .72rem var(--body); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.ln .m { overflow-x: auto; overflow-y: hidden; }
+.ln .m .katex { font-size: 1.12em; white-space: nowrap; }
+.ln .w { font-size: .85rem; color: var(--muted); }
+
+.stats { display: flex; flex-wrap: wrap; gap: 6px 26px; }
+.stats div { display: grid; }
+.stats b { font: 500 1.3rem var(--mono); font-variant-numeric: tabular-nums; }
+.stats span { font-size: .78rem; color: var(--muted); }
+.words { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
+.words > div { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 16px; display: grid; gap: 6px; align-content: start; }
+.words h3 { margin: 0; font: italic 400 1.1rem var(--display); color: var(--rust); }
+@media (max-width: 860px) { .words { grid-template-columns: 1fr; } }
+.player { position: sticky; top: 0; z-index: 5; background: var(--paper); padding-block: 12px 14px; border-bottom: 1px solid var(--line); display: grid; gap: 12px; }
+.tl { display: flex; gap: 4px; }
+.tl button { flex: 1; height: 8px; border-radius: 4px; border: 0; background: var(--line); cursor: pointer; padding: 0; }
+.tl button.done { background: #d9a68e; }
+.tl button.cur { background: var(--rust); }
+.narr { display: grid; grid-template-columns: 1fr auto; gap: 8px 20px; align-items: end; }
+.narr > div { display: grid; gap: 6px; min-width: 0; max-width: 52em; }
+.narr h2 { font-size: clamp(1.35rem, 2.6vw, 1.8rem); }
+.narr p { font-size: 1rem; }
+.narr .nav { display: flex; gap: 8px; }
+@media (max-width: 700px) { .narr { grid-template-columns: 1fr; } }
+.stagearea { display: grid; gap: 16px; padding-top: 18px; }
+.hot { box-shadow: 0 0 0 2px var(--rust); border-radius: 6px; }
+.ln.on { background: var(--rust-soft); border-radius: 6px; padding-inline: 8px; }
+td.hc, th.hc { background: var(--rust-soft); }
+.scrub { display: grid; grid-template-columns: auto auto auto 1fr auto; gap: 10px; align-items: center; }
+.scrub input { width: 100%; accent-color: var(--rust); }
+.etas { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; }
+.keys { font-size: .8rem; color: var(--muted); }
+footer { border-top: 1px solid var(--line); margin-top: 28px; padding-top: 16px; font-size: .84rem; color: var(--muted); display: grid; gap: 4px; }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header>
+  <h1>Gradient descent, by hand</h1>
+  <p>A guided walk from one simple curve to a model trained on 569 real biopsies. Every number can be checked with a calculator. Use Next, or press Play and watch.</p>
+</header>
+
+<div class="player" id="player">
+  <div class="tl" id="tl" role="tablist" aria-label="Scenes"></div>
+  <div class="narr">
+    <div>
+      <span class="kicker" id="nK"></span>
+      <h2 id="nT"></h2>
+      <p id="nB"></p>
+    </div>
+    <div class="nav">
+      <button class="btn" id="back" type="button">← Back</button>
+      <button class="btn" id="play" type="button">▶ Play</button>
+      <button class="btn primary" id="next" type="button">Next →</button>
+    </div>
+  </div>
+  <span class="keys">Keys: ← → to move, space to play or pause.</span>
+</div>
+
+<div class="stagearea">
+
+  <div class="cols" id="pPar">
+    <div class="win"><div class="bar"><span class="dot"></span>f(w) = (w − 3)²</div><div class="in"><svg id="parSvg" viewBox="0 0 520 240" role="img" aria-label="Parabola with a ball and its slope"></svg></div></div>
+    <div class="win"><div class="bar"><span class="dot"></span>By hand</div><div class="in lines" id="parLines"></div></div>
+  </div>
+
+  <div class="win" id="pScr"><div class="bar"><span class="dot"></span><span class="grow" id="scrTitle">Six real biopsies</span><span class="mono muted" id="scrWB"></span></div>
+    <div class="in"><svg id="scrSvg" viewBox="0 0 900 300" role="img" aria-label="Tumors by radius with the model's probability curve"></svg></div>
+  </div>
+
+  <div class="cols" id="pMon">
+    <div class="win"><div class="bar"><span class="dot"></span><span class="grow">Monitor</span><span class="mono muted" id="monWB"></span></div><div class="in">
+      <div class="tw"><table>
+        <thead><tr id="monHead">
+          <th>tumor</th><th data-c="x">radius<small>x</small></th><th data-c="xs">scaled<small>x̃</small></th><th data-c="z">score<small>z</small></th><th data-c="p">prob<small>p</small></th><th data-c="y">truth<small>y</small></th><th data-c="L">loss<small>L</small></th><th data-c="gw">pull on w<small>(y−p)x̃</small></th><th data-c="gb">pull on b<small>(y−p)</small></th>
+        </tr></thead>
+        <tbody id="monBody"></tbody>
+      </table></div>
+    </div></div>
+    <div class="win" id="pHand"><div class="bar"><span class="dot"></span><span class="grow" id="handTitle">By hand</span></div><div class="in lines" id="handLines"></div></div>
+  </div>
+
+  <div class="cols" id="pTrain">
+    <div class="win"><div class="bar"><span class="dot"></span>Training</div><div class="in">
+      <div class="scrub" id="scrubRow">
+        <button class="btn" id="kBack" type="button" aria-label="Previous step">◀</button>
+        <button class="btn" id="kPlay" type="button">▶ Play steps</button>
+        <button class="btn" id="kNext" type="button" aria-label="Next step">▶|</button>
+        <input type="range" id="kRange" min="0" max="60" value="0" aria-label="Training step">
+        <span class="mono" id="kOut">step 0</span>
+      </div>
+      <div class="etas" id="etaRow"><span class="muted" style="font-size:.9rem">step size η:</span></div>
+      <svg id="sparkSvg" viewBox="0 0 520 120" role="img" aria-label="Cost per step"></svg>
+      <div class="stats">
+        <div><b id="sJ">–</b><span>cost J</span></div>
+        <div><b id="sAcc">–</b><span>called correctly</span></div>
+        <div><b id="sB">–</b><span>flips to malignant at radius</span></div>
+      </div>
+    </div></div>
+    <div class="win"><div class="bar"><span class="dot"></span>This step, by hand</div><div class="in lines" id="updLines"></div></div>
+  </div>
+
+  <div class="words" id="pWords">
+    <div><h3>What does the sigmoid do?</h3><p>It turns the score into a probability between 0 and 1. That's the S-curve over the tumors: small radius, near 0; large radius, near 1.</p></div>
+    <div><h3>What is gradient descent?</h3><p>There's no formula that jumps to the best w and b, so we start somewhere, measure the slope of the cost, and step against it. Repeat until the slope is about 0.</p></div>
+    <div><h3>What is it doing each step?</h3><p>Every tumor reports its error × input. The model averages those pulls and moves w and b a step against them. Badly wrong calls pull hardest; right ones barely pull.</p></div>
+  </div>
+</div>
+
+<footer>
+  <span>Data: Wisconsin Diagnostic Breast Cancer dataset (569 biopsies), as shipped with scikit-learn. Feature: mean radius of the cell nuclei. Scaling uses the mean 14.13 and standard deviation 3.52 of all 569.</span>
+  <span>The six tumors are dataset rows 425, 84, 8, 227, 0 and 302. Model: p = σ(w·x̃ + b), trained by batch gradient descent on the average log loss, starting from w = 0, b = 0.</span>
+</footer>
+</div>
+
+<script>
+const DATA = {"r":[17.99,20.57,19.69,11.42,20.29,12.45,18.25,13.71,13.0,12.46,16.02,15.78,19.17,15.85,13.73,14.54,14.68,16.13,19.81,13.54,13.08,9.5,15.34,21.16,16.65,17.14,14.58,18.61,15.3,17.57,18.63,11.84,17.02,19.27,16.13,16.74,14.25,13.03,14.99,13.48,13.44,10.95,19.07,13.28,13.17,18.65,8.2,13.17,12.05,13.49,11.76,13.64,11.94,18.22,15.1,11.52,19.21,14.71,13.05,8.62,10.17,8.6,14.25,9.17,12.68,14.78,9.46,11.31,9.03,12.78,18.94,8.89,17.2,13.8,12.31,16.07,13.53,18.05,20.18,12.86,11.45,13.34,25.22,19.1,12.0,18.46,14.48,19.02,12.36,14.64,14.62,15.37,13.27,13.45,15.06,20.26,12.18,9.79,11.6,14.42,13.61,6.98,12.18,9.88,10.49,13.11,11.64,12.36,22.27,11.34,9.78,12.63,14.26,10.51,8.73,11.93,8.95,14.87,15.78,17.95,11.41,18.66,24.25,14.5,13.37,13.85,13.61,19.0,15.1,19.79,12.19,15.46,16.16,15.71,18.45,12.77,11.71,11.43,14.95,11.28,9.74,16.11,11.43,12.9,10.75,11.9,11.8,14.95,14.44,13.74,13.0,8.22,9.73,11.15,13.15,12.25,17.68,16.84,12.06,10.9,11.75,19.19,19.59,12.34,23.27,14.97,10.8,16.78,17.47,14.97,12.32,13.43,15.46,11.08,10.66,8.67,9.9,16.46,13.01,12.81,27.22,21.09,15.7,11.41,15.28,10.08,18.31,11.71,11.81,12.3,14.22,12.77,9.72,12.34,14.86,12.91,13.77,18.08,19.18,14.45,12.23,17.54,23.29,13.81,12.47,15.12,9.88,17.01,13.11,15.27,20.58,11.84,28.11,17.42,14.19,13.86,11.89,10.2,19.8,19.53,13.65,13.56,10.18,15.75,13.27,14.34,10.44,15.0,12.62,12.83,17.05,11.32,11.22,20.51,9.57,14.03,23.21,20.48,14.22,17.46,13.64,12.42,11.3,13.75,19.4,10.48,13.2,12.89,10.65,11.52,20.94,11.5,19.73,17.3,19.45,13.96,19.55,15.32,15.66,15.53,20.31,17.35,17.29,15.61,17.19,20.73,10.6,13.59,12.87,10.71,14.29,11.29,21.75,9.74,17.93,11.89,11.33,18.81,13.59,13.85,19.16,11.74,19.4,16.24,12.89,12.58,11.94,12.89,11.26,11.37,14.41,14.96,12.95,11.85,12.72,13.77,10.91,11.76,14.26,10.51,19.53,12.46,20.09,10.49,11.46,11.6,13.2,9.0,13.5,13.05,11.7,14.61,12.76,11.54,8.6,12.49,12.18,18.22,9.04,12.43,10.25,20.16,12.86,20.34,12.2,12.67,14.11,12.03,16.27,16.26,16.03,12.98,11.22,11.25,12.3,17.06,12.99,18.77,10.05,23.51,14.42,9.61,11.06,19.68,11.71,10.26,12.06,14.76,11.47,11.95,11.66,15.75,25.73,15.08,11.14,12.56,13.05,13.87,8.88,9.44,12.54,13.3,12.76,16.5,13.4,20.44,20.2,12.21,21.71,22.01,16.35,15.19,21.37,20.64,13.69,16.17,10.57,13.46,13.66,11.08,11.27,11.04,12.05,12.39,13.28,14.6,12.21,13.88,11.27,19.55,10.26,8.73,15.49,21.61,12.1,14.06,13.51,12.8,11.06,11.8,17.91,11.93,12.96,12.94,12.34,10.94,16.14,12.85,17.99,12.27,11.36,11.04,9.4,14.99,15.13,11.89,9.4,15.5,12.7,11.16,11.57,14.69,11.61,13.66,9.74,10.03,10.48,10.8,11.13,12.72,14.9,12.4,20.18,18.82,14.86,13.98,12.87,14.04,13.85,14.02,10.97,17.27,13.78,10.57,18.03,11.99,17.75,14.8,14.53,21.1,11.87,19.59,12.0,14.53,12.62,13.38,11.63,13.21,13.0,9.76,17.08,27.42,14.4,11.6,13.17,13.24,13.14,9.67,17.6,11.62,9.67,12.04,14.92,12.27,10.88,12.83,14.2,13.9,11.49,16.25,12.16,13.9,13.47,13.7,15.73,12.45,14.64,19.44,11.68,16.69,12.25,17.85,18.01,12.46,13.16,14.87,12.65,12.47,18.49,20.59,15.04,13.82,12.54,23.09,9.27,9.68,12.22,11.06,16.3,15.46,11.74,14.81,13.4,14.58,15.05,11.34,18.31,19.89,12.88,12.75,9.29,24.63,11.26,13.71,9.85,8.57,13.46,12.34,13.94,12.07,11.75,11.67,13.68,20.47,10.96,20.55,14.27,11.69,7.73,7.69,11.54,14.47,14.74,13.21,13.87,13.62,10.32,10.26,9.68,10.82,10.86,11.13,12.77,9.33,12.88,10.29,10.16,9.42,14.59,11.51,14.05,11.2,15.22,20.92,21.56,20.13,16.6,20.6,7.76],"y":[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,0,1,0,0,0,0,0,1,1,0,1,1,0,0,0,0,1,0,1,1,0,0,0,0,1,0,1,1,0,1,0,1,1,0,0,0,1,1,0,1,1,1,0,0,0,1,0,0,1,1,0,0,0,1,1,0,0,0,0,1,0,0,1,0,0,0,0,0,0,0,0,1,1,1,0,1,1,0,0,0,1,1,0,1,0,1,1,0,1,1,0,0,1,0,0,1,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,1,1,0,1,0,0,1,1,0,0,1,1,0,0,0,0,1,0,0,1,1,1,0,1,0,1,0,0,0,1,0,0,1,1,0,1,1,1,1,0,1,1,1,0,1,0,1,0,0,1,0,1,1,1,1,0,0,1,1,0,0,0,1,0,0,0,0,0,1,1,0,0,1,0,0,1,1,0,1,0,0,0,0,1,0,0,0,0,0,1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,1,0,1,0,0,1,0,0,1,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1,0,1,0,0,0,0,1,1,1,0,0,0,0,1,0,1,0,1,0,0,0,1,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0,1,1,0,1,1,1,0,1,1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,1,0,0,1,1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,1,0,1,0,0,0,0,0,1,0,0,1,0,1,0,0,1,0,1,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,1,0,0,1,0,0,0,0,0,1,1,0,1,0,1,0,0,0,0,0,1,0,0,1,0,1,0,1,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,1,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,0]};
+(function () {
+  "use strict";
+  const NS = "http://www.w3.org/2000/svg";
+  const MU = 14.127291739894552, SD = 3.520950760711062;
+  const SIX = [425, 84, 8, 227, 0, 302];
+  const ALL = DATA.r.map((r, i) => ({ i, x: r, y: DATA.y[i] }));
+  const SET6 = SIX.map(i => ALL[i]);
+  const sig = z => 1 / (1 + Math.exp(-z));
+  const sc = x => (x - MU) / SD;
+  const reduce = matchMedia("(prefers-reduced-motion: reduce)").matches;
+
+  const z0 = (v, d) => Math.abs(v) < 0.5 * 10 ** -d ? 0 : v;
+  const f = (v, d = 3) => { v = z0(v, d); return (v < 0 ? "−" : "") + Math.abs(v).toFixed(d); };
+  const tx = (v, d = 3) => { v = z0(v, d); const s = Math.abs(v).toFixed(d); return v < 0 ? "(-" + s + ")" : s; };
+  const n = (v, d = 3) => { v = z0(v, d); return (v < 0 ? "-" : "") + Math.abs(v).toFixed(d); };
+  const K = s => window.katex ? katex.renderToString(s, { throwOnError: false }) : s;
+  const ln = (k, m, w, on) => `<div class="ln${on ? " on" : ""}"><span class="k">${k}</span><span class="m">${K(m)}</span>${w ? `<span class="w">${w}</span>` : ""}</div>`;
+  function el(tag, a, parent, text) { const e = document.createElementNS(NS, tag); for (const k in a) e.setAttribute(k, a[k]); if (text != null) e.textContent = text; if (parent) parent.appendChild(e); return e; }
+  const $ = id => document.getElementById(id);
+
+  /* ---------- model state: a precomputed training timeline ---------- */
+  const st = { set: SET6, lr: 1, traj: [], k: 0, sel: 8, rows: "all", hand: 7, handOn: -1, cols: [] };
+  function grads(set, w, b) {
+    let J = 0, gw = 0, gb = 0, ok = 0;
+    for (const t of set) { const xs = sc(t.x), p = sig(w * xs + b); J -= t.y ? Math.log(p) : Math.log(1 - p); gw -= (t.y - p) * xs; gb -= (t.y - p); ok += ((p >= 0.5 ? 1 : 0) === t.y); }
+    const N = set.length; return { J: J / N, gw: gw / N, gb: gb / N, ok, N };
+  }
+  function buildTraj() {
+    const S = st.set === SET6 ? 60 : 150; let w = 0, b = 0; st.traj = [];
+    for (let k = 0; k <= S; k++) { const g = grads(st.set, w, b); st.traj.push({ w, b, ...g }); w -= st.lr * g.gw; b -= st.lr * g.gb; }
+    $("kRange").max = S; st.k = Math.min(st.k, S);
+  }
+  const cur = () => st.traj[st.k];
+  function row(t) {
+    const { w, b } = cur(); const xs = sc(t.x), z = w * xs + b, p = sig(z), e = t.y - p;
+    return { t, xs, z, p, e, L: -(t.y * Math.log(p) + (1 - t.y) * Math.log(1 - p)), gw: e * xs, gb: e };
+  }
+  const flipAt = () => { const { w, b } = cur(); return Math.abs(w) < 1e-9 ? null : MU + (-b / w) * SD; };
+
+  /* ---------- parabola ---------- */
+  const PA = { svg: $("parSvg"), L: 34, R: 505, T: 12, B: 196, a: -1, b: 7, ymax: 16 };
+  PA.x = w => PA.L + (w - PA.a) / (PA.b - PA.a) * (PA.R - PA.L);
+  PA.y = v => PA.B - Math.min(v, PA.ymax) / PA.ymax * (PA.B - PA.T);
+  const pf = w => (w - 3) ** 2, pg = w => 2 * (w - 3), PETA = 0.3;
+  const par = { trail: [-0.5] };
+  (function () {
+    const g = PA.svg;
+    [0, 4, 8, 12, 16].forEach(v => { el("line", { x1: PA.L, x2: PA.R, y1: PA.y(v), y2: PA.y(v), class: "grid" }, g); el("text", { x: PA.L - 6, y: PA.y(v) + 4, "text-anchor": "end", class: "tick" }, g, v); });
+    [-1, 1, 3, 5, 7].forEach(w => el("text", { x: PA.x(w), y: PA.B + 17, "text-anchor": "middle", class: "tick" }, g, w));
+    el("text", { x: PA.R, y: PA.B + 32, "text-anchor": "end", class: "tick" }, g, "w");
+    el("line", { x1: PA.L, x2: PA.R, y1: PA.B, y2: PA.B, class: "axis" }, g);
+    let d = ""; for (let w = PA.a; w <= PA.b + 1e-9; w += 0.05) d += (d ? "L" : "M") + PA.x(w).toFixed(1) + " " + PA.y(pf(w)).toFixed(1);
+    el("path", { d, class: "curve" }, g);
+    el("text", { x: PA.x(3), y: PA.B + 32, "text-anchor": "middle", class: "note" }, g, "bottom at w = 3");
+    PA.trail = el("g", {}, g); PA.tan = el("line", { class: "tan" }, g); PA.ball = el("circle", { r: 8, class: "ball" }, g);
+  })();
+  function renderPar(showStep) {
+    const w = par.trail[par.trail.length - 1], v = pf(w), s = pg(w), nw = w - PETA * s;
+    PA.ball.setAttribute("cx", PA.x(w)); PA.ball.setAttribute("cy", PA.y(v));
+    const dw = 0.8; PA.tan.setAttribute("x1", PA.x(w - dw)); PA.tan.setAttribute("x2", PA.x(w + dw)); PA.tan.setAttribute("y1", PA.y(v - s * dw)); PA.tan.setAttribute("y2", PA.y(v + s * dw));
+    PA.trail.innerHTML = ""; par.trail.slice(0, -1).forEach(t => el("circle", { cx: PA.x(t), cy: PA.y(pf(t)), r: 3.5, fill: "var(--rust)", opacity: .35 }, PA.trail));
+    $("parLines").innerHTML =
+      ln("where we are", `w = ${n(w)}, \\quad f(w) = (${n(w)} - 3)^2 = ${v.toFixed(3)}`, "", !showStep) +
+      ln("slope", `f'(w) = 2(w-3) = 2(${n(w)} - 3) = ${n(s)}`, s > 0.005 ? "Positive: downhill is to the left." : (s < -0.005 ? "Negative: downhill is to the right." : "About zero: we're at the bottom."), !showStep) +
+      (showStep ? ln("step", `w_{\\text{new}} = w - \\eta\\, f'(w) = ${n(w)} - 0.3 \\cdot ${tx(s)} = ${n(nw)}`, "η = 0.3 is the step size.", true) : "");
+  }
+
+  /* ---------- screening chart ---------- */
+  const SC = { svg: $("scrSvg"), L: 48, R: 880, T: 20, B: 250 };
+  SC.range = () => st.set === SET6 ? [8, 22] : [6, 29];
+  SC.x = x => { const [a, b] = SC.range(); return SC.L + (x - a) / (b - a) * (SC.R - SC.L); };
+  SC.y = p => SC.B - p * (SC.B - SC.T);
+  const jitter = i => { const s = Math.sin(i * 12.9898) * 43758.5453; return (s - Math.floor(s)) - 0.5; };
+  function drawScreen() {
+    const g = SC.svg; g.innerHTML = ""; const [a, b] = SC.range(); const { w, b: bb } = cur();
+    [0, 0.5, 1].forEach(p => { el("line", { x1: SC.L, x2: SC.R, y1: SC.y(p), y2: SC.y(p), class: p === 0.5 ? "half" : "grid" }, g); el("text", { x: SC.L - 8, y: SC.y(p) + 4, "text-anchor": "end", class: "tick" }, g, p); });
+    for (let x = Math.ceil(a / 2) * 2; x <= b; x += 2) el("text", { x: SC.x(x), y: SC.B + 18, "text-anchor": "middle", class: "tick" }, g, x);
+    el("text", { x: (SC.L + SC.R) / 2, y: SC.B + 38, "text-anchor": "middle", class: "tick" }, g, "mean radius of the cell nuclei");
+    el("text", { x: SC.L + 6, y: SC.y(1) + 18, class: "note" }, g, "malignant (y = 1)");
+    el("text", { x: SC.R, y: SC.y(0) - 8, "text-anchor": "end", class: "note" }, g, "benign (y = 0)");
+    el("text", { x: SC.R, y: SC.y(0.5) - 6, "text-anchor": "end", class: "note" }, g, "p = 0.5");
+    let d = ""; for (let x = a; x <= b + 1e-9; x += (b - a) / 300) d += (d ? "L" : "M") + SC.x(x).toFixed(1) + " " + SC.y(sig(w * sc(x) + bb)).toFixed(1);
+    el("path", { d, class: "curve" }, g);
+    const fx = flipAt();
+    if (fx != null && fx > a && fx < b) {
+      el("line", { x1: SC.x(fx), x2: SC.x(fx), y1: SC.T, y2: SC.B, class: "bound" }, g);
+      el("text", { x: SC.x(fx) + 6, y: SC.y(0.5) + 16, class: "boundlbl" }, g, "calls malignant above " + fx.toFixed(2));
+    }
+    const big = st.set === SET6;
+    st.set.forEach(t => {
+      const jy = big ? 0 : jitter(t.i) * 18;
+      const c = el("circle", { cx: SC.x(t.x), cy: SC.y(t.y) + jy, r: big ? 9 : 3.6, class: "pt " + (t.y ? "pt-m" : "pt-b") + (t.i === st.sel ? " sel" : "") }, g);
+      if (!big) c.setAttribute("opacity", 0.55);
+      if (big) el("text", { x: SC.x(t.x), y: SC.y(t.y) + (t.y ? 26 : -16), "text-anchor": "middle", class: "tick" }, g, "#" + t.i + " · " + t.x.toFixed(2));
+    });
+    $("scrTitle").textContent = big ? "Six real biopsies" : "All 569 biopsies";
+    $("scrWB").textContent = "w = " + f(w) + "   b = " + f(bb);
+  }
+
+  /* ---------- monitor + by hand ---------- */
+  function drawMonitor() {
+    const T = cur();
+    let rs = st.set.map(row);
+    if (st.rows === "sel") rs = rs.filter(r => r.t.i === st.sel);
+    else if (st.set !== SET6) rs = rs.filter(r => SIX.includes(r.t.i));
+    const C = st.cols;
+    const td = (c, v, cls) => `<td class="${(cls || "") + (C.includes(c) ? " hc" : "")}">${v}</td>`;
+    let html = rs.map(r => `<tr class="${r.t.i === st.sel && st.rows !== "sel" ? "sel" : ""}"><td>#${r.t.i}</td>${td("x", r.t.x.toFixed(2))}${td("xs", f(r.xs))}${td("z", f(r.z))}${td("p", r.p.toFixed(3))}${td("y", r.t.y, r.t.y ? "mal" : "ben")}${td("L", r.L.toFixed(3))}${td("gw", f(r.gw), "g")}${td("gb", f(r.gb), "g")}</tr>`).join("");
+    if (st.rows === "all") {
+      if (st.set !== SET6) html += `<tr class="more"><td colspan="9">… and ${T.N - 6} more tumors, computed the same way</td></tr>`;
+      html += `<tr class="tot"><td colspan="6">average over ${T.N}</td><td>J = ${T.J.toFixed(3)}</td><td class="g${C.includes("tot") ? " hc" : ""}">${f(-T.gw)}</td><td class="g${C.includes("tot") ? " hc" : ""}">${f(-T.gb)}</td></tr>`;
+    }
+    $("monBody").innerHTML = html;
+    document.querySelectorAll("#monHead th[data-c]").forEach(th => th.classList.toggle("hc", C.includes(th.dataset.c)));
+    $("monWB").textContent = "w = " + f(T.w) + "   b = " + f(T.b);
+
+    if (!(st.sel >= 0)) return;
+    const r = row(ALL[st.sel]);
+    $("handTitle").textContent = "By hand: tumor #" + st.sel + (r.t.y ? " (malignant)" : " (benign)");
+    const lossTex = r.t.y === 1 ? `-\\ln p = -\\ln(${r.p.toFixed(3)})` : `-\\ln(1-p) = -\\ln(1-${r.p.toFixed(3)})`;
+    const L = [
+      ["scale", `\\tilde x = \\frac{x - 14.13}{3.52} = \\frac{${r.t.x.toFixed(2)} - 14.13}{3.52} = ${n(r.xs)}`, "Standard deviations above or below an average tumor."],
+      ["score", `z = w\\tilde x + b = ${tx(T.w)}\\cdot${tx(r.xs)} + ${tx(T.b)} = ${n(r.z)}`, ""],
+      ["squash", `p = \\sigma(z) = \\frac{1}{1+e^{-z}} = \\frac{1}{1+e^{${n(-r.z)}}} = ${r.p.toFixed(3)}`, "The model's P(malignant) for this tumor."],
+      ["loss", `L = ${lossTex} = ${r.L.toFixed(3)}`, r.t.y === 1 ? "Truth is malignant: the loss is −ln of the probability it gave malignant." : "Truth is benign: the loss is −ln of the probability it gave benign."],
+      ["error", `y - p = ${r.t.y} - ${r.p.toFixed(3)} = ${n(r.e)}`, Math.abs(r.e) > 0.5 ? "More than 0.5 off: the model calls this tumor wrong." : (Math.abs(r.e) === 0.5 ? "Exactly 0.5 off: the model has no opinion yet." : "Less than 0.5 off: the model calls this tumor correctly.")],
+      ["pull on w", `(y-p)\\,\\tilde x = ${tx(r.e)}\\cdot${tx(r.xs)} = ${n(r.gw)}`, r.gw > 0 ? "Positive: this tumor wants w to go up." : "Negative: this tumor wants w to go down."],
+      ["pull on b", `y-p = ${n(r.gb)}`, "The bias has no input, so its pull is the error alone."]
+    ];
+    $("handLines").innerHTML = L.slice(0, st.hand).map((l, i) => ln(l[0], l[1], l[2], st.handOn.includes ? st.handOn.includes(i) : i === st.handOn)).join("");
+  }
+
+  /* ---------- training ---------- */
+  const ETAS = [0.2, 1, 30];
+  ETAS.forEach(e => { const b = document.createElement("button"); b.className = "btn"; b.type = "button"; b.textContent = "η = " + e; b.dataset.e = e; b.onclick = () => { stopK(); st.lr = e; buildTraj(); st.k = 0; render(); }; $("etaRow").appendChild(b); });
+  function drawTrain() {
+    const T = cur(), N = T.N, fx = flipAt();
+    $("kRange").value = st.k; $("kOut").textContent = "step " + st.k + " / " + (st.traj.length - 1);
+    $("sJ").textContent = T.J.toFixed(3); $("sAcc").textContent = T.ok + " / " + N; $("sB").textContent = fx == null ? "–" : fx.toFixed(2);
+    document.querySelectorAll("#etaRow button").forEach(b => b.setAttribute("aria-pressed", String(+b.dataset.e === st.lr)));
+    const nw = T.w - st.lr * T.gw, nb = T.b - st.lr * T.gb, six = N <= 6;
+    const rs = st.set.map(row);
+    const sumW = six ? rs.map(r => tx(r.gw)).join(" + ") : `\\text{sum of ${N} pulls}`;
+    const sumB = six ? rs.map(r => tx(r.gb)).join(" + ") : `\\text{sum of ${N} pulls}`;
+    $("updLines").innerHTML =
+      ln("slope in w", `\\frac{\\partial J}{\\partial w} = -\\,\\frac{${sumW}}{${N}} = ${n(T.gw)}`, "Minus the average pull on w. The cost goes downhill in the direction the tumors pull.") +
+      ln("slope in b", `\\frac{\\partial J}{\\partial b} = -\\,\\frac{${sumB}}{${N}} = ${n(T.gb)}`, "Minus the average pull on b.") +
+      ln("step w", `w_{\\text{new}} = w - \\eta\\,\\frac{\\partial J}{\\partial w} = ${n(T.w)} - ${st.lr}\\cdot${tx(T.gw)} = ${n(nw)}`) +
+      ln("step b", `b_{\\text{new}} = b - \\eta\\,\\frac{\\partial J}{\\partial b} = ${n(T.b)} - ${st.lr}\\cdot${tx(T.gb)} = ${n(nb)}`, "These become w and b at the next step.");
+    const g = $("sparkSvg"); g.innerHTML = "";
+    const H = st.traj.map(t => t.J), L = 40, R = 510, Tp = 10, B = 96, ymax = Math.max(0.8, ...H) * 1.05;
+    [0, ymax / 2, ymax].forEach(v => { const y = B - v / ymax * (B - Tp); el("line", { x1: L, x2: R, y1: y, y2: y, class: "grid" }, g); el("text", { x: L - 6, y: y + 4, "text-anchor": "end", class: "tick" }, g, v.toFixed(2)); });
+    el("text", { x: (L + R) / 2, y: B + 20, "text-anchor": "middle", class: "tick" }, g, "cost J at each step");
+    const xs = i => L + i / (H.length - 1) * (R - L), ys = v => B - Math.min(v, ymax) / ymax * (B - Tp);
+    el("path", { d: "M" + H.map((v, i) => xs(i).toFixed(1) + " " + ys(v).toFixed(1)).join(" L"), stroke: "var(--line)", "stroke-width": 2, fill: "none" }, g);
+    const pts = H.slice(0, st.k + 1).map((v, i) => xs(i).toFixed(1) + " " + ys(v).toFixed(1));
+    if (pts.length > 1) el("path", { d: "M" + pts.join(" L"), class: "spark" }, g);
+    el("circle", { cx: xs(st.k), cy: ys(T.J), r: 4.5, fill: "var(--rust)" }, g);
+  }
+
+  function render() {
+    if (!SCN[sc_i].show.includes("par")) { drawScreen(); drawMonitor(); drawTrain(); }
+  }
+
+  /* ---------- step timeline controls ---------- */
+  let kTimer = null;
+  function stopK() { if (kTimer) { clearInterval(kTimer); kTimer = null; $("kPlay").textContent = "▶ Play steps"; } }
+  function playK(done) {
+    stopK(); if (st.k >= st.traj.length - 1) st.k = 0;
+    if (reduce) { st.k = st.traj.length - 1; render(); done && done(); return; }
+    $("kPlay").textContent = "❚❚ Pause";
+    kTimer = setInterval(() => { st.k++; render(); if (st.k >= st.traj.length - 1) { stopK(); done && done(); } }, st.set === SET6 ? 110 : 60);
+  }
+  $("kPlay").onclick = () => kTimer ? stopK() : playK();
+  $("kBack").onclick = () => { stopK(); st.k = Math.max(0, st.k - 1); render(); };
+  $("kNext").onclick = () => { stopK(); st.k = Math.min(st.traj.length - 1, st.k + 1); render(); };
+  $("kRange").oninput = e => { stopK(); st.k = +e.target.value; render(); };
+
+  /* ---------- scenes ---------- */
+  const SCN = [
+    { k: "The idea", t: "Find the bottom without seeing the curve", show: ["par"],
+      b: "Here is f(w) = (w − 3)². Pretend you can't see the curve, only the slope where the ball sits: the blue line. If the slope goes down to the right, the bottom is to the right.",
+      enter() { par.trail = [-0.5]; renderPar(false); } },
+    { k: "The idea", t: "One step: move against the slope", show: ["par"],
+      b: "The slope is 2(w − 3) = −7 here. Gradient descent moves w by −η × slope. With η = 0.3 that's +2.1, so w goes from −0.5 to 1.6. Press Next to take the step.",
+      enter() { par.trail = [-0.5]; renderPar(true); } },
+    { k: "The idea", t: "Repeat until the slope is flat", show: ["par"],
+      b: "Each step recomputes the slope and moves again. The steps shrink on their own, because the slope flattens near the bottom. That's the whole algorithm. Everything after this is the same loop on a real problem.",
+      anim: true, enter(play) { par.trail = [-0.5, 1.6]; renderPar(false); animatePar(play); } },
+    { k: "The real problem", t: "Six real biopsies", show: ["scr"], set: "6", k0: 0, sel: null,
+      b: "Each dot is a real tumor from the Wisconsin dataset, placed by the mean radius of its cell nuclei. Bottom row benign, top row malignant. The black curve is the model's P(malignant). Its two numbers, w and b, start at 0, so it says 0.5 for everyone: a flat line." },
+    { k: "One tumor", t: "Follow tumor #8: scale the measurement", show: ["scr", "mon", "hand"], set: "6", k0: 0, sel: 8, rows: "sel", hand: 1, handOn: 0, cols: ["x", "xs"],
+      b: "Tumor #8 is malignant but small, radius 13.00, which makes it a hard case. First the radius is scaled: how many standard deviations from an average tumor. 13.00 is a little below average, so x̃ is negative." },
+    { k: "One tumor", t: "Score it", show: ["scr", "mon", "hand"], set: "6", k0: 0, sel: 8, rows: "sel", hand: 2, handOn: 1, cols: ["z"],
+      b: "The score is z = w·x̃ + b. With w and b both still 0, every score is 0." },
+    { k: "One tumor", t: "Squash the score into a probability", show: ["scr", "mon", "hand"], set: "6", k0: 0, sel: 8, rows: "sel", hand: 3, handOn: 2, cols: ["p"],
+      b: "The sigmoid maps any score to a number between 0 and 1. σ(0) = 0.5: the model has no opinion yet." },
+    { k: "One tumor", t: "How wrong was it?", show: ["scr", "mon", "hand"], set: "6", k0: 0, sel: 8, rows: "sel", hand: 4, handOn: 3, cols: ["y", "L"],
+      b: "The truth is malignant, so the loss is −ln of the probability the model gave malignant. Giving the truth only 0.5 costs 0.693. A confident right answer would cost almost 0." },
+    { k: "One tumor", t: "Its pull on w and b", show: ["scr", "mon", "hand"], set: "6", k0: 0, sel: 8, rows: "sel", hand: 7, handOn: [4, 5, 6], cols: ["gw", "gb"],
+      b: "The error y − p = 0.5. Times the input, that's this tumor's pull on w. The bias has no input, so its pull is the error itself. Positive pull means: move this number up. This tumor alone wants b up (call more things malignant) and w a little down, since it's a small tumor." },
+    { k: "All six", t: "Every tumor pulls", show: ["scr", "mon"], set: "6", k0: 0, sel: null, rows: "all", cols: ["gw", "gb"],
+      b: "The same five lines, for all six tumors. The large malignant ones pull w up, and so do the small benign ones. The pulls on b cancel out exactly here, since three are malignant and three benign, each with error ±0.5." },
+    { k: "All six", t: "Average the pulls, then step", show: ["scr", "mon", "train"], set: "6", k0: 0, sel: null, rows: "all", cols: ["tot"], scrub: false,
+      b: "Average the pulls. The slope of the cost, ∂J/∂w, is minus the average pull, so stepping against the slope moves w the way the tumors pull, exactly like the ball on the curve. With η = 1, w goes from 0 to 0.333 and b stays at 0." },
+    { k: "All six", t: "One step later", show: ["scr", "mon", "train"], set: "6", k0: 1, sel: null, rows: "all", cols: [], scrub: false,
+      b: "w is now 0.333, so the curve tilts: larger tumors now lean malignant. The cost dropped from 0.693 to 0.596. Every number in the monitor was recomputed with the new w and b." },
+    { k: "Training", t: "Keep stepping", show: ["scr", "train"], set: "6", k0: 1, sel: null, scrub: true,
+      b: "Press Play steps, or drag the slider, to watch 60 steps. The curve steepens and the cost flattens near 0.419. The model ends up calling 4 of the 6 correctly: #8 (small but malignant) and #227 (large but benign) can't be told apart by radius alone.",
+      anim: true, enter(play) { render(); if (play) playK(() => advanceLater()); } },
+    { k: "Training", t: "The step size η", show: ["scr", "train"], set: "6", k0: 0, sel: null, scrub: true, eta: true,
+      b: "Try the three step sizes and play each. η = 0.2 creeps: after 60 steps it still hasn't reached the bottom. η = 1 is smooth. η = 30 overshoots: the cost jumps up, falls, then starts bouncing instead of settling.",
+      anim: true, enter(play) { render(); if (play) playK(() => advanceLater()); } },
+    { k: "All 569", t: "Same loop, all 569 tumors", show: ["scr", "mon", "train"], set: "all", k0: 0, sel: null, rows: "all", cols: [], scrub: true,
+      b: "Now the averages run over 569 tumors instead of 6. The formulas and the loop don't change. Play it: the flip point settles near radius 14.75, and radius alone gets about 88% of tumors right.",
+      anim: true, enter(play) { render(); if (play) playK(() => advanceLater()); } },
+    { k: "Recap", t: "Saying it out loud", show: ["words"], b: "The three questions, answered in the order of the walk: the squash, the descent, and what one step does." }
+  ];
+  let sc_i = 0, playing = false, advTimer = null;
+  $("tl").innerHTML = SCN.map((s, i) => `<button type="button" role="tab" aria-label="Scene ${i + 1}: ${s.t}" title="${s.t}" data-i="${i}"></button>`).join("");
+  $("tl").onclick = e => { const b = e.target.closest("button"); if (b) go(+b.dataset.i); };
+
+  let parTimer = null;
+  function animatePar(play) {
+    clearInterval(parTimer);
+    const stepPar = () => { const w = par.trail[par.trail.length - 1]; par.trail.push(w - PETA * pg(w)); renderPar(false); };
+    if (reduce) { for (let i = 0; i < 7; i++) stepPar(); if (play) advanceLater(); return; }
+    let left = 7; parTimer = setInterval(() => { stepPar(); if (--left <= 0) { clearInterval(parTimer); if (play) advanceLater(); } }, 650);
+  }
+
+  function go(i, fromPlay) {
+    clearTimeout(advTimer); clearInterval(parTimer); stopK();
+    sc_i = Math.max(0, Math.min(SCN.length - 1, i)); const s = SCN[sc_i];
+    if (!fromPlay) setPlaying(false);
+    $("nK").textContent = (sc_i + 1) + " of " + SCN.length + " · " + s.k;
+    $("nT").textContent = s.t; $("nB").textContent = s.b;
+    [["pPar", "par"], ["pScr", "scr"], ["pMon", "mon"], ["pTrain", "train"], ["pWords", "words"]].forEach(([id, key]) => $(id).hidden = !s.show.includes(key));
+    $("pHand").hidden = !s.show.includes("hand");
+    $("pMon").style.gridTemplateColumns = "1fr";
+    $("scrubRow").hidden = !s.scrub; $("etaRow").hidden = !s.eta;
+    document.querySelectorAll("#tl button").forEach((b, j) => { b.className = j < sc_i ? "done" : (j === sc_i ? "cur" : ""); b.setAttribute("aria-selected", String(j === sc_i)); });
+    $("back").disabled = sc_i === 0; $("next").disabled = sc_i === SCN.length - 1;
+    if (s.set) {
+      const want = s.set === "6" ? SET6 : ALL;
+      if (st.set !== want || (!s.eta && st.lr !== 1)) { st.set = want; st.lr = 1; buildTraj(); }
+      st.k = s.k0 != null ? s.k0 : st.k;
+      st.sel = s.sel != null ? s.sel : -1;
+      st.rows = s.rows || "all"; st.hand = s.hand || 7; st.handOn = s.handOn != null ? s.handOn : -1; st.cols = s.cols || [];
+    }
+    if (s.enter) s.enter(playing); else render();
+    if (playing && !s.anim) advanceLater();
+  }
+  function advanceLater() {
+    if (!playing) return;
+    clearTimeout(advTimer);
+    const words = SCN[sc_i].b.split(" ").length;
+    advTimer = setTimeout(() => { if (playing && sc_i < SCN.length - 1) go(sc_i + 1, true); else setPlaying(false); }, Math.max(3500, words * 260));
+  }
+  function setPlaying(on) { playing = on; $("play").textContent = on ? "❚❚ Pause" : "▶ Play"; if (!on) clearTimeout(advTimer); }
+  $("play").onclick = () => { if (playing) { setPlaying(false); return; } setPlaying(true); go(sc_i === SCN.length - 1 ? 0 : sc_i, true); };
+  $("next").onclick = () => go(sc_i + 1);
+  $("back").onclick = () => go(sc_i - 1);
+  document.addEventListener("keydown", e => {
+    if (e.target.matches("input, textarea")) return;
+    if (e.key === "ArrowRight") { e.preventDefault(); go(sc_i + 1); }
+    else if (e.key === "ArrowLeft") { e.preventDefault(); go(sc_i - 1); }
+    else if (e.key === " ") { e.preventDefault(); $("play").click(); }
+  });
+
+  buildTraj();
+  go(0);
+})();
+</script>
+</body>
+</html>

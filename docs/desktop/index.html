@@ -1,0 +1,744 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Gradient Descent Desktop</title>
+<meta name="description" content="A desktop of linked windows where a logistic-regression model learns to call real biopsies malignant or benign, with every wire's value live in a Monitor.">
+<meta name="theme-color" content="#f3eee4">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Source+Serif+4:opsz,wght@8..60,400;8..60,600;8..60,700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" integrity="sha384-n8MVd4RsNIU0tAv4ct0nTaAbDJwPJzDEaqSD1odI+WdtXRGWt2kTvGFasHpSy3SV" crossorigin="anonymous">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js" integrity="sha384-XjKyOOlGwcjNTAIQHIpgOno0Hl1YQqzUOEleOLALmuqehneUG+vnGctmUb0ZY0l8" crossorigin="anonymous"></script>
+<style>
+:root {
+  color-scheme: light;
+  --paper: #f3eee4;
+  --sheet: #fffdf8;
+  --desk: #dcd2c1;
+  --ink: #1e1a16;
+  --ink-2: #5f564d;
+  --ink-3: #72675c;
+  --rule: #dcd2c4;
+  --rule-strong: #cbbfae;
+  --edge: rgb(52 38 24 / 0.16);
+  --wash: rgb(52 38 24 / 0.06);
+  --copper: #a64d1d;
+  --copper-line: rgb(166 77 29 / 0.5);
+  --copper-wash: rgb(166 77 29 / 0.13);
+  --indigo: #33589e;
+  --green: #2e6a4c;
+  --plum: #7a3355;
+  --ochre: #8a6412;
+  --red: #b3261e;
+  --malignant: var(--copper);
+  --benign: var(--indigo);
+  --serif: "Source Serif 4", Georgia, serif;
+  --sans: "Inter", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Menlo, monospace;
+  --shadow-1: 0 1px 1px rgb(60 42 22 / 0.05), 0 2px 6px rgb(60 42 22 / 0.06);
+  --shadow-2: 0 1px 2px rgb(60 42 22 / 0.08), 0 10px 28px -8px rgb(60 42 22 / 0.24);
+  --shadow-3: 0 2px 4px rgb(60 42 22 / 0.1), 0 28px 64px -16px rgb(60 42 22 / 0.38);
+  --tour-h: 96px;
+  --dock-h: 84px;
+}
+*, *::before, *::after { box-sizing: border-box; }
+[hidden] { display: none !important; }
+html, body { margin: 0; height: 100%; }
+body {
+  background: var(--desk);
+  color: var(--ink);
+  font: 400 13px/20px var(--sans);
+  -webkit-font-smoothing: antialiased;
+  overflow: hidden;
+}
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--copper); outline-offset: 2px; border-radius: 4px; }
+.num { font-variant-numeric: tabular-nums; }
+
+#desk {
+  position: fixed; inset: 0; overflow: hidden;
+  background:
+    radial-gradient(circle at 0.5px 0.5px, var(--edge) 0 0.75px, transparent 1.25px) 11px 11px / 24px 24px,
+    radial-gradient(1100px 620px at 22% 4%, rgb(255 253 248 / 0.3), transparent 72%),
+    radial-gradient(900px 560px at 100% 100%, rgb(166 77 29 / 0.09), transparent 70%),
+    var(--desk);
+}
+
+/* Tour bar */
+#tour {
+  position: absolute; z-index: 50; top: 12px; left: 50%; translate: -50% 0;
+  width: min(820px, calc(100% - 32px));
+  min-height: 72px;
+  display: grid; grid-template-columns: auto 1fr auto; align-items: center; gap: 16px;
+  padding: 10px 14px 14px 18px;
+  background: var(--sheet); border: 1px solid var(--edge); border-radius: 12px;
+  box-shadow: var(--shadow-2);
+}
+#tour .count { font: 600 11px/16px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); white-space: nowrap; }
+#narr { margin: 0; font: 400 17px/24px var(--serif); color: var(--ink); min-height: 48px; display: flex; align-items: center; }
+#narr span.t { display: block; }
+#tour .ctl { display: flex; gap: 6px; align-items: center; }
+.btn {
+  height: 30px; min-width: 30px; padding: 0 10px; border-radius: 8px;
+  border: 1px solid var(--edge); background: var(--sheet); cursor: pointer;
+  display: inline-grid; place-items: center; box-shadow: var(--shadow-1);
+  font: 500 12px/1 var(--sans); white-space: nowrap;
+}
+.btn:hover { border-color: var(--copper-line); }
+.btn:active { background: var(--paper); box-shadow: none; }
+.btn:disabled { opacity: .4; cursor: default; }
+.btn.primary { background: var(--copper); color: #fffdf8; border-color: var(--copper); }
+.btn svg { width: 14px; height: 14px; }
+#dots { position: absolute; left: 18px; right: 18px; bottom: 5px; display: flex; gap: 3px; }
+#dots button { flex: 1; height: 3px; padding: 0; border: 0; border-radius: 2px; background: var(--rule); cursor: pointer; }
+#dots button.done { background: var(--copper-line); }
+#dots button.on { background: var(--copper); }
+
+/* Windows */
+.window {
+  position: absolute; display: flex; flex-direction: column;
+  overflow: clip; border: 1px solid var(--edge); border-radius: 12px;
+  background: color-mix(in srgb, var(--sheet) 88%, var(--paper));
+  box-shadow: var(--shadow-2);
+}
+.window.focused { background: var(--sheet); box-shadow: var(--shadow-3); }
+.titlebar {
+  flex: none; height: 40px; display: flex; align-items: center; justify-content: space-between;
+  padding: 0 9px 0 14px; border-bottom: 1px solid var(--rule); cursor: grab; user-select: none; touch-action: none;
+}
+.window.focused .titlebar { background: rgb(166 77 29 / 0.07); border-bottom-color: rgb(166 77 29 / 0.24); }
+.titlebar.dragging { cursor: grabbing; }
+.wtitle { display: flex; align-items: center; gap: 9px; font: 700 15px/20px var(--serif); color: var(--ink-2); }
+.window.focused .wtitle { color: var(--ink); }
+.app-dot { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid var(--ink-3); }
+.window.focused .app-dot { background: var(--copper); border-color: var(--copper); }
+.wsub { font: 400 12px/16px var(--sans); color: var(--ink-3); margin-left: 4px; }
+.wclose { width: 22px; height: 22px; border: 0; border-radius: 50%; background: none; cursor: pointer; display: grid; place-items: center; color: var(--ink-3); }
+.wclose:hover { background: var(--copper); color: var(--sheet); }
+.wclose svg { width: 12px; height: 12px; }
+.wbody { flex: 1; min-height: 0; position: relative; }
+.label { font: 600 11px/16px var(--sans); letter-spacing: .08em; text-transform: uppercase; color: var(--ink-3); }
+
+/* Data */
+.seg { display: flex; gap: 2px; padding: 2px; margin: 10px 12px 6px; border-radius: 8px; background: var(--wash); }
+.seg button { flex: 1; height: 26px; border: 0; border-radius: 6px; background: none; cursor: pointer; font: 500 12px/1 var(--sans); color: var(--ink-2); }
+.seg button[aria-pressed="true"] { background: var(--sheet); color: var(--ink); box-shadow: var(--shadow-1); }
+#dataWin .wbody { display: flex; flex-direction: column; }
+.dhead, .drow { display: grid; grid-template-columns: 48px 58px 1fr 52px; gap: 6px; padding: 0 12px 0 16px; align-items: center; }
+.dhead { height: 26px; border-bottom: 1px solid var(--rule); }
+.dhead span:nth-child(2), .dhead span:nth-child(4) { text-align: right; }
+#dataRows { flex: 1; overflow-y: auto; min-height: 0; }
+.drow { height: 26px; border-bottom: 1px solid color-mix(in srgb, var(--rule) 55%, transparent); cursor: pointer; font: 400 12.5px/26px var(--sans); }
+.drow:hover { background: var(--wash); }
+.drow.sel { background: var(--copper-wash); box-shadow: inset 2px 0 0 var(--copper); }
+.drow .id { font: 400 12px/26px var(--mono); color: var(--ink-2); }
+.drow .r, .drow .p { text-align: right; font-variant-numeric: tabular-nums; }
+.drow .p { font: 400 12px/26px var(--mono); }
+.drow .p.wrong { color: var(--red); }
+.dx { display: flex; align-items: center; gap: 6px; }
+.dx::before { content: ""; width: 7px; height: 7px; border-radius: 50%; background: var(--benign); }
+.dx.m::before { background: var(--malignant); }
+.dfoot { flex: none; padding: 8px 16px; border-top: 1px solid var(--rule); color: var(--ink-2); font-size: 12px; }
+.dfoot b { color: var(--ink); font-weight: 600; }
+
+/* Model and Loss plots */
+.plot { position: absolute; inset: 0; }
+.plot svg { display: block; width: 100%; height: 100%; }
+.plot text { font: 400 11px var(--sans); fill: var(--ink-3); }
+.plot .axis { stroke: var(--rule-strong); stroke-width: 1; }
+.plot .grid { stroke: var(--rule); stroke-width: 1; stroke-dasharray: 2 4; }
+.plot .curve { fill: none; stroke: var(--ink); stroke-width: 2; }
+.plot .flip { stroke: var(--copper); stroke-width: 1; stroke-dasharray: 4 4; }
+.plot .flipt { fill: var(--copper); font-weight: 500; }
+.plot .dot { cursor: pointer; }
+.plot .err { stroke: var(--copper); stroke-width: 2; }
+.plot .ring { fill: none; stroke: var(--ink); stroke-width: 2; }
+.plot .pt { fill: var(--sheet); stroke: var(--copper); stroke-width: 2; }
+.plot .val { fill: var(--ink); font: 500 12px var(--mono); }
+.plot .lossJ { fill: none; stroke: var(--ink); stroke-width: 2; }
+.plot .lossL { fill: none; stroke: var(--copper); stroke-width: 1.5; stroke-dasharray: 3 3; opacity: .8; }
+.plot .now { stroke: var(--copper); stroke-width: 1; }
+.legend { position: absolute; top: 8px; right: 12px; display: flex; gap: 12px; font-size: 11.5px; color: var(--ink-2); pointer-events: none; }
+.legend i { display: inline-block; width: 8px; height: 8px; border-radius: 50%; margin-right: 5px; vertical-align: 0; }
+.legend i.line { width: 14px; height: 2px; border-radius: 0; vertical-align: 3px; }
+.legend i.dash { width: 14px; height: 0; border-radius: 0; border-top: 1.5px dashed var(--copper); background: none; vertical-align: 3px; }
+
+/* Monitor */
+#monWin .wbody { display: flex; flex-direction: column; }
+.mhead, .mrow { display: grid; grid-template-columns: 62px minmax(0, 1fr) 66px 70px; gap: 8px; align-items: center; padding: 0 14px 0 16px; }
+.mhead { flex: none; height: 28px; border-bottom: 1px solid var(--rule); }
+.mhead span:last-child { text-align: right; }
+#monRows { flex: 1; overflow-y: auto; min-height: 0; }
+.msec { padding: 8px 16px 2px; display: flex; justify-content: space-between; align-items: baseline; }
+.msec .label { color: var(--ink-2); }
+.msec .note { font-size: 11.5px; color: var(--ink-3); }
+.mrow { min-height: 26px; border-bottom: 1px solid color-mix(in srgb, var(--rule) 55%, transparent); }
+.mrow.hl { background: var(--copper-wash); box-shadow: inset 2px 0 0 var(--copper); }
+.mrow .sym { font-size: 13px; white-space: nowrap; }
+.mrow .rule { font-size: 13px; color: var(--ink-2); white-space: nowrap; overflow: hidden; }
+.mrow .rule .katex { font-size: 1em; }
+.mrow .sym .katex { font-size: 1.12em; }
+.kind { display: flex; align-items: center; gap: 6px; color: var(--ink-2); font-size: 12px; }
+.kind::before { content: ""; width: 6px; height: 6px; border-radius: 1.5px; background: var(--kc, var(--ink-3)); }
+.mrow .v { text-align: right; font: 500 12.5px/26px var(--mono); font-variant-numeric: tabular-nums; }
+.mrow.hl .v { color: var(--copper); }
+.mfoot { flex: none; padding: 8px 16px; border-top: 1px solid var(--rule); color: var(--ink-3); font-size: 12px; display: flex; justify-content: space-between; gap: 12px; }
+
+/* Loss */
+#lossWin .stat { position: absolute; left: 50px; top: 8px; font: 500 12px var(--mono); color: var(--ink); pointer-events: none; }
+
+/* Dock */
+#dock {
+  position: absolute; z-index: 40; left: 50%; bottom: 14px; translate: -50% 0;
+  display: flex; align-items: center; gap: 14px;
+  padding: 8px 12px 8px 10px; border-radius: 16px;
+  background: color-mix(in srgb, var(--sheet) 82%, transparent); border: 1px solid var(--edge);
+  box-shadow: var(--shadow-2); backdrop-filter: blur(8px);
+}
+.tiles { position: relative; display: flex; gap: 8px; padding-bottom: 10px; }
+.tiles::after { content: ""; position: absolute; left: -4px; right: -4px; bottom: 3px; height: 1px; background: var(--copper-line); }
+.tile {
+  position: relative; width: 44px; height: 44px; border-radius: 11px; border: 1px solid var(--edge);
+  background: var(--sheet); box-shadow: var(--shadow-1); cursor: pointer; display: grid; place-items: center; padding: 0;
+}
+.tile:hover { border-color: var(--copper-line); box-shadow: var(--shadow-2); }
+.tile svg { width: 26px; height: 26px; opacity: .5; }
+.tile.open svg { opacity: 1; }
+.tile svg .a { stroke: var(--copper); }
+.tile i { position: absolute; z-index: 1; bottom: -11px; left: 50%; width: 7px; height: 7px; margin-left: -3.5px; border: 1.5px solid var(--copper); border-radius: 4px; background: var(--paper); }
+.tile.open i { background: var(--copper); }
+.tile.focused i { width: 16px; margin-left: -8px; }
+.vsep { width: 1px; align-self: stretch; background: var(--rule); }
+.timeline { display: flex; align-items: center; gap: 6px; }
+.timeline input[type=range] { width: 220px; accent-color: var(--copper); }
+.tl-read { min-width: 96px; font: 500 12px/16px var(--mono); color: var(--ink-2); }
+.tl-read b { color: var(--ink); font-weight: 500; }
+
+/* Phone: stacked, not draggable */
+@media (max-width: 820px) {
+  body { overflow: auto; background: var(--desk); }
+  #desk { position: static; overflow: visible; min-height: 100%; padding: 0 0 8px; }
+  #tour { position: sticky; top: 0; left: auto; translate: none; width: auto; margin: 0 0 12px; border-radius: 0 0 12px 12px;
+    grid-template-columns: 1fr; gap: 6px; padding: 10px 16px 16px; }
+  #narr { font-size: 16px; line-height: 22px; min-height: 44px; }
+  #tour .ctl { justify-content: flex-end; }
+  .window { position: static !important; width: auto !important; height: auto !important; margin: 0 16px 12px; }
+  .titlebar { cursor: default; }
+  #dataWin .wbody { height: 300px; flex: none; }
+  #modelWin .wbody { height: 260px; flex: none; }
+  #monWin .wbody { height: auto; flex: none; }
+  #monRows { overflow: visible; }
+  #lossWin .wbody { height: 180px; flex: none; }
+  .mhead, .mrow { grid-template-columns: 54px minmax(0, 1fr) 62px; padding: 0 12px; }
+  .mhead span:nth-child(3), .mrow .kind { display: none; }
+  #dock { position: sticky; bottom: 0; left: auto; translate: none; margin: 0; border-radius: 12px 12px 0 0;
+    flex-direction: column; gap: 8px; align-items: stretch; padding: 8px 16px; }
+  .vsep { display: none; }
+  .tiles { justify-content: center; }
+  .tile { width: 36px; height: 36px; border-radius: 9px; }
+  .tile svg { width: 22px; height: 22px; }
+  .timeline input[type=range] { flex: 1; width: auto; min-width: 0; }
+}
+</style>
+</head>
+<body>
+<main id="desk">
+  <header id="tour" aria-live="polite">
+    <div class="count" id="tourCount">Tour 1 / 16</div>
+    <p id="narr"></p>
+    <div class="ctl">
+      <button class="btn" id="tPrev" aria-label="Previous tour step"><svg viewBox="0 0 14 14"><path d="M9 2.5 4.5 7 9 11.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <button class="btn" id="tPlay" aria-label="Play tour"></button>
+      <button class="btn primary" id="tNext" aria-label="Next tour step"><svg viewBox="0 0 14 14"><path d="M5 2.5 9.5 7 5 11.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+      <button class="btn" id="tSkip">Explore</button>
+    </div>
+    <div id="dots"></div>
+  </header>
+
+  <section class="window" id="dataWin" data-app="data">
+    <div class="titlebar"><div class="wtitle"><span class="app-dot"></span>Data<span class="wsub" id="dataSub"></span></div>
+      <button class="wclose" aria-label="Close Data"><svg viewBox="0 0 12 12"><path d="M2.5 2.5l7 7m0-7-7 7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button></div>
+    <div class="wbody">
+      <div class="seg" role="group" aria-label="Cases">
+        <button id="segSix" aria-pressed="true">6 cases</button>
+        <button id="segAll" aria-pressed="false">All 569</button>
+      </div>
+      <div class="dhead label"><span>Case</span><span>Radius</span><span>Diagnosis</span><span>p</span></div>
+      <div id="dataRows" role="listbox" aria-label="Cases"></div>
+      <div class="dfoot" id="dataFoot"></div>
+    </div>
+  </section>
+
+  <section class="window" id="modelWin" data-app="model">
+    <div class="titlebar"><div class="wtitle"><span class="app-dot"></span>Model<span class="wsub">chance of malignant by radius</span></div>
+      <button class="wclose" aria-label="Close Model"><svg viewBox="0 0 12 12"><path d="M2.5 2.5l7 7m0-7-7 7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button></div>
+    <div class="wbody">
+      <div class="plot" id="modelPlot"></div>
+      <div class="legend"><span><i style="background:var(--malignant)"></i>malignant</span><span><i style="background:var(--benign)"></i>benign</span></div>
+    </div>
+  </section>
+
+  <section class="window" id="monWin" data-app="monitor">
+    <div class="titlebar"><div class="wtitle"><span class="app-dot"></span>Monitor</div>
+      <button class="wclose" aria-label="Close Monitor"><svg viewBox="0 0 12 12"><path d="M2.5 2.5l7 7m0-7-7 7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button></div>
+    <div class="wbody">
+      <div class="mhead label"><span>Wire</span><span>Rule</span><span>Kind</span><span>Value</span></div>
+      <div id="monRows"></div>
+      <div class="mfoot"><span id="monFootL"></span><span id="monFootR"></span></div>
+    </div>
+  </section>
+
+  <section class="window" id="lossWin" data-app="loss">
+    <div class="titlebar"><div class="wtitle"><span class="app-dot"></span>Loss<span class="wsub">cost per training step</span></div>
+      <button class="wclose" aria-label="Close Loss"><svg viewBox="0 0 12 12"><path d="M2.5 2.5l7 7m0-7-7 7" stroke="currentColor" stroke-width="1.3" stroke-linecap="round"/></svg></button></div>
+    <div class="wbody">
+      <div class="plot" id="lossPlot"></div>
+      <div class="legend"><span><i class="line" style="background:var(--ink)"></i>cost J</span><span id="lossLegL"><i class="dash"></i>L of case</span></div>
+    </div>
+  </section>
+
+  <nav id="dock" aria-label="Dock">
+    <div class="tiles">
+      <button class="tile" data-app="data" title="Data" aria-label="Data window"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><rect x="4" y="5" width="20" height="18" rx="2.5"/><path d="M4 10.5h20M4 16h20"/><path class="a" d="M11 10.5V23"/></svg><i></i></button>
+      <button class="tile" data-app="model" title="Model" aria-label="Model window"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 23h20M4 5v18"/><path class="a" d="M6 20c6 0 6-12 9-12s3 0 8-1"/></svg><i></i></button>
+      <button class="tile" data-app="monitor" title="Monitor" aria-label="Monitor window"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="6" width="20" height="16" rx="2.5"/><path class="a" d="M7.5 15.5h3l2-4.5 3 7 2-4.5h3"/></svg><i></i></button>
+      <button class="tile" data-app="loss" title="Loss" aria-label="Loss window"><svg viewBox="0 0 28 28" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round"><path d="M4 23h20M4 5v18"/><path class="a" d="M7 7c2 8 5 11 16 12"/></svg><i></i></button>
+    </div>
+    <div class="vsep"></div>
+    <div class="timeline" aria-label="Training timeline">
+      <button class="btn" id="kBack" aria-label="Step back"><svg viewBox="0 0 14 14"><path d="M3 2.5v9M11 2.5 5.5 7l5.5 4.5z" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg></button>
+      <button class="btn" id="kPlay" aria-label="Play training"></button>
+      <button class="btn" id="kFwd" aria-label="Step forward"><svg viewBox="0 0 14 14"><path d="M11 2.5v9M3 2.5 8.5 7 3 11.5z" fill="currentColor" stroke="currentColor" stroke-width="1.2" stroke-linejoin="round"/></svg></button>
+      <input type="range" id="scrub" min="0" max="60" value="0" aria-label="Training step">
+      <div class="tl-read" id="tlRead"></div>
+    </div>
+  </nav>
+</main>
+
+<script>
+const DATA = {"r":[17.99,20.57,19.69,11.42,20.29,12.45,18.25,13.71,13.0,12.46,16.02,15.78,19.17,15.85,13.73,14.54,14.68,16.13,19.81,13.54,13.08,9.5,15.34,21.16,16.65,17.14,14.58,18.61,15.3,17.57,18.63,11.84,17.02,19.27,16.13,16.74,14.25,13.03,14.99,13.48,13.44,10.95,19.07,13.28,13.17,18.65,8.2,13.17,12.05,13.49,11.76,13.64,11.94,18.22,15.1,11.52,19.21,14.71,13.05,8.62,10.17,8.6,14.25,9.17,12.68,14.78,9.46,11.31,9.03,12.78,18.94,8.89,17.2,13.8,12.31,16.07,13.53,18.05,20.18,12.86,11.45,13.34,25.22,19.1,12.0,18.46,14.48,19.02,12.36,14.64,14.62,15.37,13.27,13.45,15.06,20.26,12.18,9.79,11.6,14.42,13.61,6.98,12.18,9.88,10.49,13.11,11.64,12.36,22.27,11.34,9.78,12.63,14.26,10.51,8.73,11.93,8.95,14.87,15.78,17.95,11.41,18.66,24.25,14.5,13.37,13.85,13.61,19.0,15.1,19.79,12.19,15.46,16.16,15.71,18.45,12.77,11.71,11.43,14.95,11.28,9.74,16.11,11.43,12.9,10.75,11.9,11.8,14.95,14.44,13.74,13.0,8.22,9.73,11.15,13.15,12.25,17.68,16.84,12.06,10.9,11.75,19.19,19.59,12.34,23.27,14.97,10.8,16.78,17.47,14.97,12.32,13.43,15.46,11.08,10.66,8.67,9.9,16.46,13.01,12.81,27.22,21.09,15.7,11.41,15.28,10.08,18.31,11.71,11.81,12.3,14.22,12.77,9.72,12.34,14.86,12.91,13.77,18.08,19.18,14.45,12.23,17.54,23.29,13.81,12.47,15.12,9.88,17.01,13.11,15.27,20.58,11.84,28.11,17.42,14.19,13.86,11.89,10.2,19.8,19.53,13.65,13.56,10.18,15.75,13.27,14.34,10.44,15.0,12.62,12.83,17.05,11.32,11.22,20.51,9.57,14.03,23.21,20.48,14.22,17.46,13.64,12.42,11.3,13.75,19.4,10.48,13.2,12.89,10.65,11.52,20.94,11.5,19.73,17.3,19.45,13.96,19.55,15.32,15.66,15.53,20.31,17.35,17.29,15.61,17.19,20.73,10.6,13.59,12.87,10.71,14.29,11.29,21.75,9.74,17.93,11.89,11.33,18.81,13.59,13.85,19.16,11.74,19.4,16.24,12.89,12.58,11.94,12.89,11.26,11.37,14.41,14.96,12.95,11.85,12.72,13.77,10.91,11.76,14.26,10.51,19.53,12.46,20.09,10.49,11.46,11.6,13.2,9.0,13.5,13.05,11.7,14.61,12.76,11.54,8.6,12.49,12.18,18.22,9.04,12.43,10.25,20.16,12.86,20.34,12.2,12.67,14.11,12.03,16.27,16.26,16.03,12.98,11.22,11.25,12.3,17.06,12.99,18.77,10.05,23.51,14.42,9.61,11.06,19.68,11.71,10.26,12.06,14.76,11.47,11.95,11.66,15.75,25.73,15.08,11.14,12.56,13.05,13.87,8.88,9.44,12.54,13.3,12.76,16.5,13.4,20.44,20.2,12.21,21.71,22.01,16.35,15.19,21.37,20.64,13.69,16.17,10.57,13.46,13.66,11.08,11.27,11.04,12.05,12.39,13.28,14.6,12.21,13.88,11.27,19.55,10.26,8.73,15.49,21.61,12.1,14.06,13.51,12.8,11.06,11.8,17.91,11.93,12.96,12.94,12.34,10.94,16.14,12.85,17.99,12.27,11.36,11.04,9.4,14.99,15.13,11.89,9.4,15.5,12.7,11.16,11.57,14.69,11.61,13.66,9.74,10.03,10.48,10.8,11.13,12.72,14.9,12.4,20.18,18.82,14.86,13.98,12.87,14.04,13.85,14.02,10.97,17.27,13.78,10.57,18.03,11.99,17.75,14.8,14.53,21.1,11.87,19.59,12.0,14.53,12.62,13.38,11.63,13.21,13.0,9.76,17.08,27.42,14.4,11.6,13.17,13.24,13.14,9.67,17.6,11.62,9.67,12.04,14.92,12.27,10.88,12.83,14.2,13.9,11.49,16.25,12.16,13.9,13.47,13.7,15.73,12.45,14.64,19.44,11.68,16.69,12.25,17.85,18.01,12.46,13.16,14.87,12.65,12.47,18.49,20.59,15.04,13.82,12.54,23.09,9.27,9.68,12.22,11.06,16.3,15.46,11.74,14.81,13.4,14.58,15.05,11.34,18.31,19.89,12.88,12.75,9.29,24.63,11.26,13.71,9.85,8.57,13.46,12.34,13.94,12.07,11.75,11.67,13.68,20.47,10.96,20.55,14.27,11.69,7.73,7.69,11.54,14.47,14.74,13.21,13.87,13.62,10.32,10.26,9.68,10.82,10.86,11.13,12.77,9.33,12.88,10.29,10.16,9.42,14.59,11.51,14.05,11.2,15.22,20.92,21.56,20.13,16.6,20.6,7.76],"y":[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,0,1,0,0,0,0,0,1,1,0,1,1,0,0,0,0,1,0,1,1,0,0,0,0,1,0,1,1,0,1,0,1,1,0,0,0,1,1,0,1,1,1,0,0,0,1,0,0,1,1,0,0,0,1,1,0,0,0,0,1,0,0,1,0,0,0,0,0,0,0,0,1,1,1,0,1,1,0,0,0,1,1,0,1,0,1,1,0,1,1,0,0,1,0,0,1,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,1,1,0,1,0,0,1,1,0,0,1,1,0,0,0,0,1,0,0,1,1,1,0,1,0,1,0,0,0,1,0,0,1,1,0,1,1,1,1,0,1,1,1,0,1,0,1,0,0,1,0,1,1,1,1,0,0,1,1,0,0,0,1,0,0,0,0,0,1,1,0,0,1,0,0,1,1,0,1,0,0,0,0,1,0,0,0,0,0,1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,1,0,1,0,0,1,0,0,1,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1,0,1,0,0,0,0,1,1,1,0,0,0,0,1,0,1,0,1,0,0,0,1,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0,1,1,0,1,1,1,0,1,1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,1,0,0,1,1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,1,0,1,0,0,0,0,0,1,0,0,1,0,1,0,0,1,0,1,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,1,0,0,1,0,0,0,0,0,1,1,0,1,0,1,0,0,0,0,0,1,0,0,1,0,1,0,1,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,1,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,0]};
+const MU = 14.127291739894552, SD = 3.520950760711062, ETA = 1;
+const SIX = [425, 84, 8, 227, 0, 302];
+const ALL = DATA.r.map((_, i) => i);
+const STEPS = { six: 60, all: 150 };
+const sig = z => 1 / (1 + Math.exp(-z));
+const sx = r => (r - MU) / SD;
+
+// Full-batch gradient descent on the average log loss, recorded so any step can be restored.
+function batch(ids, w, b) {
+  let J = 0, gw = 0, gb = 0, right = 0;
+  const p = {};
+  for (const i of ids) {
+    const xt = sx(DATA.r[i]), y = DATA.y[i], pi = sig(w * xt + b);
+    p[i] = pi;
+    J += -(y * Math.log(pi) + (1 - y) * Math.log(1 - pi));
+    gw += -(y - pi) * xt; gb += -(y - pi);
+    if ((pi > 0.5 ? 1 : 0) === y) right++;
+  }
+  const N = ids.length;
+  return { J: J / N, gw: gw / N, gb: gb / N, right, N, p };
+}
+function trajectory(ids, T) {
+  const w = [0], b = [0], J = [];
+  for (let t = 0; t <= T; t++) {
+    const s = batch(ids, w[t], b[t]);
+    J.push(s.J);
+    if (t < T) { w.push(w[t] - ETA * s.gw); b.push(b[t] - ETA * s.gb); }
+  }
+  return { w, b, J, T };
+}
+const TR = { six: trajectory(SIX, STEPS.six), all: trajectory(ALL, STEPS.all) };
+const ids = D => (D === 'six' ? SIX : ALL);
+
+const state = { D: 'six', t: 0, sel: 0, hl: [], open: new Set(['data']), focus: 'data' };
+
+function snap() {
+  const tr = TR[state.D], w = tr.w[state.t], b = tr.b[state.t];
+  const s = batch(ids(state.D), w, b);
+  s.w = w; s.b = b; s.t = state.t; s.T = tr.T;
+  s.J0 = tr.J[0];
+  s.flip = Math.abs(w) > 1e-9 ? MU - SD * b / w : null;
+  const i = state.sel, x = DATA.r[i], xt = sx(x), z = w * xt + b, p = sig(z), y = DATA.y[i];
+  s.c = { i, x, xt, z, p, y, L: -(y * Math.log(p) + (1 - y) * Math.log(1 - p)), e: y - p };
+  return s;
+}
+
+// Formatting
+const MINUS = '\u2212';
+function f(v, d = 3) { if (v === null || v === undefined) return '\u2014'; let s = (Math.abs(v) < 0.5 * Math.pow(10, -d) ? 0 : v).toFixed(d); return s.replace('-', MINUS); }
+function tex(s) {
+  if (window.katex) return window.katex.renderToString(s, { throwOnError: false });
+  return s;
+}
+function rich(s) { return s.split('$').map((part, k) => (k % 2 ? tex(part) : part)).join(''); }
+
+// Monitor wires
+const KC = { input: 'var(--ink-3)', affine: 'var(--copper)', sigmoid: 'var(--indigo)', loss: 'var(--plum)', error: 'var(--red)', mean: 'var(--ochre)', state: 'var(--green)', update: 'var(--green)', constant: 'var(--ink-3)' };
+const WIRES = [
+  { sec: 'case' },
+  { id: 'x', sym: 'x', rule: '\\text{radius}', kind: 'input', v: s => f(s.c.x, 2) },
+  { id: 'xt', sym: '\\tilde x', rule: '(x-14.13)/3.52', kind: 'affine', v: s => f(s.c.xt) },
+  { id: 'z', sym: 'z', rule: 'w\\tilde x+b', kind: 'affine', v: s => f(s.c.z) },
+  { id: 'p', sym: 'p', rule: '\\sigma(z)=1/(1+e^{-z})', kind: 'sigmoid', v: s => f(s.c.p) },
+  { id: 'y', sym: 'y', rule: '1 = \\text{malignant}', kind: 'input', v: s => String(s.c.y) },
+  { id: 'L', sym: 'L', rule: '-[y\\ln p+(1-y)\\ln(1-p)]', kind: 'loss', v: s => f(s.c.L) },
+  { id: 'e', sym: 'e', rule: 'y-p', kind: 'error', v: s => f(s.c.e) },
+  { sec: 'batch' },
+  { id: 'J', sym: 'J', rule: '\\tfrac1N\\textstyle\\sum L', kind: 'mean', v: s => f(s.J) },
+  { id: 'gw', sym: '\\partial J/\\partial w', rule: '-\\tfrac1N\\textstyle\\sum (y-p)\\,\\tilde x', kind: 'mean', v: s => f(s.gw) },
+  { id: 'gb', sym: '\\partial J/\\partial b', rule: '-\\tfrac1N\\textstyle\\sum (y-p)', kind: 'mean', v: s => f(s.gb) },
+  { sec: 'params' },
+  { id: 'eta', sym: '\\eta', rule: '\\text{step size}', kind: 'constant', v: () => String(ETA) },
+  { id: 'w', sym: 'w', rule: '\\text{weight}', kind: 'state', v: s => f(s.w) },
+  { id: 'b', sym: 'b', rule: '\\text{bias}', kind: 'state', v: s => f(s.b) },
+  { id: 'w2', sym: "w'", rule: 'w-\\eta\\,\\partial J/\\partial w', kind: 'update', v: s => f(s.w - ETA * s.gw) },
+  { id: 'b2', sym: "b'", rule: 'b-\\eta\\,\\partial J/\\partial b', kind: 'update', v: s => f(s.b - ETA * s.gb) },
+];
+const $ = id => document.getElementById(id);
+const monRows = $('monRows');
+const secEls = {};
+const valEls = {}, rowEls = {};
+for (const wdef of WIRES) {
+  if (wdef.sec) {
+    const el = document.createElement('div'); el.className = 'msec';
+    el.innerHTML = '<span class="label"></span><span class="note"></span>';
+    monRows.appendChild(el); secEls[wdef.sec] = el; continue;
+  }
+  const el = document.createElement('div'); el.className = 'mrow'; el.dataset.wire = wdef.id;
+  el.innerHTML = `<span class="sym">${tex(wdef.sym)}</span><span class="rule">${tex(wdef.rule)}</span><span class="kind" style="--kc:${KC[wdef.kind]}">${wdef.kind}</span><span class="v num"></span>`;
+  monRows.appendChild(el); rowEls[wdef.id] = el; valEls[wdef.id] = el.querySelector('.v');
+}
+
+// Data window
+const dataRows = $('dataRows');
+let builtFor = null; const dRow = {};
+function buildData() {
+  dataRows.textContent = '';
+  for (const k in dRow) delete dRow[k];
+  const frag = document.createDocumentFragment();
+  for (const i of ids(state.D)) {
+    const el = document.createElement('div'); el.className = 'drow'; el.setAttribute('role', 'option'); el.dataset.i = i;
+    const m = DATA.y[i] === 1;
+    el.innerHTML = `<span class="id">#${i}</span><span class="r">${DATA.r[i].toFixed(2)}</span><span class="dx${m ? ' m' : ''}">${m ? 'malignant' : 'benign'}</span><span class="p"></span>`;
+    frag.appendChild(el); dRow[i] = { el, p: el.lastChild };
+  }
+  dataRows.appendChild(frag); builtFor = state.D;
+}
+dataRows.addEventListener('click', e => { const r = e.target.closest('.drow'); if (r) select(+r.dataset.i); });
+
+function renderData(s) {
+  if (builtFor !== state.D) buildData();
+  $('segSix').setAttribute('aria-pressed', state.D === 'six');
+  $('segAll').setAttribute('aria-pressed', state.D === 'all');
+  $('dataSub').textContent = s.N + ' biopsies';
+  for (const i of ids(state.D)) {
+    const r = dRow[i], p = s.p[i];
+    r.p.textContent = f(p, 2);
+    const wrong = (p > 0.5 ? 1 : 0) !== DATA.y[i] && Math.abs(p - 0.5) > 1e-12;
+    r.p.classList.toggle('wrong', wrong);
+    r.el.classList.toggle('sel', i === state.sel);
+    r.el.setAttribute('aria-selected', i === state.sel);
+  }
+  const allHalf = Math.abs(s.w) < 1e-12 && Math.abs(s.b) < 1e-12;
+  $('dataFoot').innerHTML = allHalf ? 'Every p is 0.5: no case is called yet.' : `<b>${s.right} of ${s.N}</b> called right (p above 0.5 means malignant).`;
+}
+function scrollSelIntoView() {
+  const r = dRow[state.sel]; if (!r) return;
+  const top = r.el.offsetTop - dataRows.offsetTop, h = dataRows.clientHeight;
+  if (top < dataRows.scrollTop || top + 26 > dataRows.scrollTop + h) dataRows.scrollTop = Math.max(0, top - h / 2);
+}
+
+// SVG helpers
+const NS = 'http://www.w3.org/2000/svg';
+function size(el) { return { W: el.clientWidth || 600, H: el.clientHeight || 300 }; }
+function jit(i) { const v = Math.sin(i * 12.9898 + 78.233) * 43758.5453; return v - Math.floor(v); }
+
+function renderModel(s) {
+  const host = $('modelPlot'); const { W, H } = size(host);
+  const m = { l: 44, r: 16, t: 58, b: 50 };
+  const R0 = 6, R1 = 29;
+  const X = r => m.l + (r - R0) / (R1 - R0) * (W - m.l - m.r);
+  const pw = H - m.t - m.b;
+  const Y = p => m.t + (1 - p) * pw;
+  let g = '';
+  for (const r of [8, 12, 16, 20, 24, 28]) g += `<line class="grid" x1="${X(r)}" x2="${X(r)}" y1="${m.t - 26}" y2="${H - m.b + 20}"/><text x="${X(r)}" y="${H - m.b + 34}" text-anchor="middle">${r}</text>`;
+  for (const p of [0, 0.5, 1]) g += `<line class="${p === 0.5 ? 'grid' : 'axis'}" x1="${m.l}" x2="${W - m.r}" y1="${Y(p)}" y2="${Y(p)}"/><text x="${m.l - 8}" y="${Y(p) + 4}" text-anchor="end">${p}</text>`;
+  g += `<text x="${W - m.r}" y="${H - 6}" text-anchor="end">radius x</text><text x="${m.l - 8}" y="${m.t - 16}" text-anchor="end">p</text>`;
+  if (s.flip !== null && s.flip > R0 && s.flip < R1) g += `<line class="flip" x1="${X(s.flip)}" x2="${X(s.flip)}" y1="${m.t - 26}" y2="${H - m.b}"/><text class="flipt" x="${X(s.flip) + 6}" y="${Y(0.1)}">flip ${f(s.flip, 2)}</text>`;
+  let d = '';
+  for (let k = 0; k <= 120; k++) { const r = R0 + (R1 - R0) * k / 120; d += (k ? 'L' : 'M') + X(r).toFixed(1) + ' ' + Y(sig(s.w * sx(r) + s.b)).toFixed(1); }
+  g += `<path class="curve" d="${d}"/>`;
+  const many = state.D === 'all', rad = many ? 3.2 : 6;
+  const dotY = i => { const y = DATA.y[i]; const j = many ? jit(i) * 14 : 0; return y ? Y(1) - 8 - j : Y(0) + 8 + j; };
+  for (const i of ids(state.D)) {
+    if (i === state.sel) continue;
+    g += `<circle class="dot" data-i="${i}" cx="${X(DATA.r[i]).toFixed(1)}" cy="${dotY(i).toFixed(1)}" r="${rad}" fill="${DATA.y[i] ? 'var(--malignant)' : 'var(--benign)'}" fill-opacity="${many ? 0.45 : 0.9}"/>`;
+  }
+  const c = s.c, cx = X(c.x), cy = dotY(c.i), py = Y(c.p);
+  g += `<line class="err" x1="${cx}" x2="${cx}" y1="${cy}" y2="${py}"/>`;
+  g += `<circle class="dot" data-i="${c.i}" cx="${cx}" cy="${cy}" r="${many ? 5 : 7}" fill="${c.y ? 'var(--malignant)' : 'var(--benign)'}"/><circle class="ring" cx="${cx}" cy="${cy}" r="${many ? 8.5 : 10.5}"/>`;
+  g += `<circle class="pt" cx="${cx}" cy="${py}" r="4.5"/>`;
+  const right = cx < W - 120;
+  g += `<text class="val" x="${cx + (right ? 9 : -9)}" y="${py + (c.p > 0.5 ? 16 : -8)}" text-anchor="${right ? 'start' : 'end'}">#${c.i} p ${f(c.p, 2)}</text>`;
+  host.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="S-curve of p against radius with each case as a dot">${g}</svg>`;
+}
+$('modelPlot').addEventListener('click', e => { const d = e.target.closest('.dot'); if (d) select(+d.dataset.i); });
+
+function renderLoss(s) {
+  const host = $('lossPlot'); const { W, H } = size(host);
+  const m = { l: 44, r: 16, t: 30, b: 28 };
+  const tr = TR[state.D], T = tr.T, Ymax = 0.8;
+  const X = t => m.l + t / T * (W - m.l - m.r);
+  const Y = v => m.t + (1 - Math.min(v, Ymax) / Ymax) * (H - m.t - m.b);
+  let g = '';
+  for (const v of [0, 0.2, 0.4, 0.6, 0.8]) g += `<line class="${v ? 'grid' : 'axis'}" x1="${m.l}" x2="${W - m.r}" y1="${Y(v)}" y2="${Y(v)}"/><text x="${m.l - 8}" y="${Y(v) + 4}" text-anchor="end">${v}</text>`;
+  const ticks = T === 60 ? [0, 20, 40, 60] : [0, 50, 100, 150];
+  for (const t of ticks) g += `<text x="${X(t)}" y="${H - 8}" text-anchor="middle">${t}</text>`;
+  const i = state.sel, xt = sx(DATA.r[i]), y = DATA.y[i];
+  let dJ = '', dL = '';
+  for (let t = 0; t <= T; t++) {
+    const p = sig(tr.w[t] * xt + tr.b[t]); const L = -(y * Math.log(p) + (1 - y) * Math.log(1 - p));
+    dL += (t ? 'L' : 'M') + X(t).toFixed(1) + ' ' + Y(L).toFixed(1);
+    if (t <= s.t) dJ += (t ? 'L' : 'M') + X(t).toFixed(1) + ' ' + Y(tr.J[t]).toFixed(1);
+  }
+  g += `<path class="lossL" d="${dL}"/><path class="lossJ" d="${dJ}"/>`;
+  g += `<line class="now" x1="${X(s.t)}" x2="${X(s.t)}" y1="${m.t - 6}" y2="${H - m.b}"/><circle class="pt" cx="${X(s.t)}" cy="${Y(s.J)}" r="4"/>`;
+  g += `<rect x="${m.l}" y="${m.t - 6}" width="${W - m.l - m.r}" height="${H - m.t - m.b + 6}" fill="transparent" class="hit" style="cursor:ew-resize"/>`;
+  host.innerHTML = `<svg viewBox="0 0 ${W} ${H}" role="img" aria-label="Cost per training step">${g}</svg><div class="stat">step ${s.t} · J ${f(s.J)} · L of #${s.c.i} ${f(s.c.L)}</div>`;
+  host.dataset.ml = m.l; host.dataset.mr = m.r;
+  $('lossLegL').lastChild.textContent = `L of #${i}`;
+}
+function lossScrub(e) {
+  const host = $('lossPlot'), rect = host.getBoundingClientRect();
+  const ml = +host.dataset.ml, mr = +host.dataset.mr, T = TR[state.D].T;
+  const t = Math.round((e.clientX - rect.left - ml) / (rect.width - ml - mr) * T);
+  stopAnim(); setT(Math.max(0, Math.min(T, t)));
+}
+$('lossPlot').addEventListener('pointerdown', e => {
+  if (!e.target.closest('.hit')) return;
+  lossScrub(e); const mv = ev => lossScrub(ev);
+  window.addEventListener('pointermove', mv);
+  window.addEventListener('pointerup', () => window.removeEventListener('pointermove', mv), { once: true });
+});
+
+function renderMonitor(s) {
+  for (const wdef of WIRES) if (wdef.id) valEls[wdef.id].textContent = wdef.v(s);
+  const c = s.c;
+  secEls.case.firstChild.textContent = `Case #${c.i}`;
+  secEls.case.lastChild.textContent = c.y ? 'malignant' : 'benign';
+  secEls.batch.firstChild.textContent = `All ${s.N} cases`;
+  secEls.batch.lastChild.textContent = 'averaged';
+  secEls.params.firstChild.textContent = `Parameters`;
+  secEls.params.lastChild.textContent = `step ${s.t}`;
+  for (const id in rowEls) rowEls[id].classList.toggle('hl', state.hl.includes(id));
+  $('monFootL').textContent = `N = ${s.N} · η = ${ETA}`;
+  $('monFootR').textContent = Math.abs(s.w) < 1e-12 && Math.abs(s.b) < 1e-12 ? 'every p is 0.5' : `${s.right} of ${s.N} called right`;
+}
+function scrollHlIntoView() {
+  const id = state.hl[0]; if (!id) return;
+  const el = rowEls[id]; const top = el.offsetTop - monRows.offsetTop, h = monRows.clientHeight;
+  if (!h) return;
+  if (top < monRows.scrollTop || top + el.offsetHeight > monRows.scrollTop + h) monRows.scrollTop = Math.max(0, top - 40);
+}
+
+function renderDock(s) {
+  const sc = $('scrub'); sc.max = s.T; sc.value = s.t;
+  $('tlRead').innerHTML = `step <b>${s.t}</b> / ${s.T}`;
+  $('kBack').disabled = s.t === 0; $('kFwd').disabled = s.t === s.T;
+  $('kPlay').innerHTML = anim ? PAUSE : PLAY;
+  $('kPlay').setAttribute('aria-label', anim ? 'Pause training' : 'Play training');
+  for (const tile of document.querySelectorAll('.tile')) {
+    tile.classList.toggle('open', state.open.has(tile.dataset.app));
+    tile.classList.toggle('focused', state.focus === tile.dataset.app && state.open.has(tile.dataset.app));
+  }
+}
+const PLAY = '<svg viewBox="0 0 14 14"><path d="M4 2.5v9l7.5-4.5z" fill="currentColor"/></svg>';
+const PAUSE = '<svg viewBox="0 0 14 14"><path d="M4 2.5v9M10 2.5v9" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"/></svg>';
+
+function render() {
+  const s = snap();
+  renderData(s); renderModel(s); renderMonitor(s); renderLoss(s); renderDock(s);
+  return s;
+}
+
+// Windows
+const WIN = { data: $('dataWin'), model: $('modelWin'), monitor: $('monWin'), loss: $('lossWin') };
+const mobile = () => window.matchMedia && window.matchMedia('(max-width: 820px)').matches;
+let zTop = 10;
+function applyWindows() {
+  for (const k in WIN) {
+    const el = WIN[k], open = state.open.has(k);
+    el.hidden = !open;
+    el.classList.toggle('focused', open && state.focus === k);
+  }
+  if (state.open.has(state.focus)) WIN[state.focus].style.zIndex = ++zTop;
+}
+function layout() {
+  if (mobile()) return;
+  const W = window.innerWidth, H = window.innerHeight;
+  const top = $('tour').offsetTop + $('tour').offsetHeight + 12;
+  const bottom = H - ($('dock').offsetHeight + 28);
+  const g = 14, avail = bottom - top;
+  const dataW = 290, monW = W >= 1240 ? 500 : 440;
+  const midX = 16 + dataW + g, midW = Math.max(360, W - midX - monW - g - 16);
+  const modelH = Math.round(avail * 0.6);
+  place('data', 16, top, dataW, avail);
+  place('model', midX, top, midW, modelH);
+  place('loss', midX, top + modelH + g, midW, avail - modelH - g);
+  place('monitor', W - monW - 16, top, monW, avail);
+}
+function place(k, x, y, w, h) { const s = WIN[k].style; s.left = x + 'px'; s.top = y + 'px'; s.width = w + 'px'; s.height = h + 'px'; }
+function focusWin(k) { state.focus = k; applyWindows(); renderDock(snap()); }
+for (const k in WIN) {
+  const el = WIN[k];
+  el.addEventListener('pointerdown', () => { if (state.focus !== k) focusWin(k); });
+  el.querySelector('.wclose').addEventListener('click', e => { e.stopPropagation(); state.open.delete(k); if (state.focus === k) state.focus = [...state.open].pop() || ''; applyWindows(); renderDock(snap()); });
+  const bar = el.querySelector('.titlebar');
+  bar.addEventListener('pointerdown', e => {
+    if (mobile() || e.target.closest('.wclose')) return;
+    const sx0 = e.clientX, sy0 = e.clientY, x0 = el.offsetLeft, y0 = el.offsetTop;
+    bar.setPointerCapture && bar.setPointerCapture(e.pointerId); bar.classList.add('dragging');
+    const mv = ev => {
+      const W = window.innerWidth, H = window.innerHeight;
+      el.style.left = Math.min(W - 80, Math.max(80 - el.offsetWidth, x0 + ev.clientX - sx0)) + 'px';
+      el.style.top = Math.min(H - 60, Math.max(0, y0 + ev.clientY - sy0)) + 'px';
+    };
+    const up = () => { bar.classList.remove('dragging'); bar.removeEventListener('pointermove', mv); bar.removeEventListener('pointerup', up); bar.removeEventListener('pointercancel', up); };
+    bar.addEventListener('pointermove', mv); bar.addEventListener('pointerup', up); bar.addEventListener('pointercancel', up);
+  });
+}
+for (const tile of document.querySelectorAll('.tile')) tile.addEventListener('click', () => {
+  const k = tile.dataset.app; state.open.add(k); focusWin(k); render();
+  if (mobile()) WIN[k].scrollIntoView({ block: 'start', behavior: 'smooth' });
+});
+
+// Selection and training state
+function select(i) { state.sel = i; render(); scrollSelIntoView(); }
+function setT(t) { state.t = t; render(); }
+function setD(D) {
+  if (state.D === D) return;
+  stopAnim(); state.D = D; state.t = 0;
+  if (!ids(D).includes(state.sel)) state.sel = 0;
+  render(); scrollSelIntoView();
+}
+$('segSix').addEventListener('click', () => setD('six'));
+$('segAll').addEventListener('click', () => setD('all'));
+
+let anim = null;
+function animTo(target, done) {
+  stopAnim();
+  const dt = state.D === 'six' ? 70 : 26;
+  anim = { target, done, id: setInterval(() => {
+    if (state.t === anim.target) { finishAnim(); return; }
+    state.t += Math.sign(anim.target - state.t); render();
+  }, dt) };
+  renderDock(snap());
+}
+function stopAnim() { if (anim) { clearInterval(anim.id); anim = null; renderDock(snap()); } }
+function finishAnim() { if (!anim) return; const a = anim; clearInterval(a.id); anim = null; state.t = a.target; render(); if (a.done) a.done(); }
+function togglePlay() {
+  if (anim) { stopAnim(); return; }
+  const T = TR[state.D].T;
+  if (state.t >= T) state.t = 0;
+  animTo(T);
+}
+$('kPlay').addEventListener('click', togglePlay);
+$('kBack').addEventListener('click', () => { stopAnim(); if (state.t > 0) setT(state.t - 1); });
+$('kFwd').addEventListener('click', () => { stopAnim(); if (state.t < TR[state.D].T) setT(state.t + 1); });
+$('scrub').addEventListener('input', e => { stopAnim(); setT(+e.target.value); });
+
+// Tour: each step is a full state, so Back restores it exactly.
+const ALLWIN = ['data', 'model', 'monitor', 'loss'];
+const TOUR = [
+  { D: 'six', t: 0, sel: 0, open: ['data'], focus: 'data', hl: [],
+    say: s => 'Six real biopsies. Each row is one tumor: its mean radius and its diagnosis.' },
+  { D: 'six', t: 0, sel: 0, open: ['data', 'model'], focus: 'model', hl: [],
+    say: s => `The model draws one S-curve: the chance of malignant at each radius. It starts flat at 0.5, because $w = ${f(s.w, 0)}$ and $b = ${f(s.b, 0)}$.` },
+  { D: 'six', t: 0, sel: 0, open: ['data', 'model', 'monitor'], focus: 'monitor', hl: ['x'],
+    say: s => `Follow one case, #${s.c.i}. The Monitor lists every wire it passes through. The first is its radius, $x = ${f(s.c.x, 2)}$.` },
+  { D: 'six', t: 0, sel: 0, open: ['data', 'model', 'monitor'], focus: 'monitor', hl: ['xt'],
+    say: s => `The radius is rescaled so 0 means an average tumor. $\\tilde x = ${f(s.c.xt, 2)}$: about one spread above average.` },
+  { D: 'six', t: 0, sel: 0, open: ['data', 'model', 'monitor'], focus: 'monitor', hl: ['z', 'p'],
+    say: s => `The model scores it, $z = w\\tilde x + b = ${f(s.c.z, 0)}$. The S-curve turns the score into a chance: $p = \\sigma(${f(s.c.z, 0)}) = ${f(s.c.p, 1)}$.` },
+  { D: 'six', t: 0, sel: 0, open: ['data', 'model', 'monitor'], focus: 'monitor', hl: ['y', 'L', 'e'],
+    say: s => `It is malignant, so $y = ${s.c.y}$. The loss $L = ${f(s.c.L)}$ says how wrong ${f(s.c.p, 1)} is. The error $y - p = ${f(s.c.e, 1)}$ says p should go up.` },
+  { D: 'six', t: 0, sel: 0, open: ['data', 'model', 'monitor'], focus: 'monitor', hl: ['J'],
+    say: s => `All ${s.N} cases run through the same wires. Their average loss is the cost, $J = ${f(s.J)}$.` },
+  { D: 'six', t: 0, sel: 0, open: ['data', 'model', 'monitor'], focus: 'monitor', hl: ['gw', 'gb'],
+    say: s => `The slopes say which way is downhill. $\\partial J/\\partial w = ${f(s.gw)}$, so raising $w$ lowers the cost. $\\partial J/\\partial b = ${f(s.gb, 0)}$: the six errors cancel.` },
+  { D: 'six', t: 0, sel: 0, open: ['data', 'model', 'monitor'], focus: 'monitor', hl: ['w2', 'b2'],
+    say: s => `One step moves each parameter against its slope, with step size $\\eta = ${ETA}$. The next $w$ is $${f(s.w - ETA * s.gw)}$. The next $b$ stays $${f(s.b - ETA * s.gb, 0)}$.` },
+  { D: 'six', t: 1, sel: 0, open: ALLWIN, focus: 'loss', hl: ['J'],
+    say: s => `That was step 1. The curve tilts, and the cost drops from ${f(s.J0)} to ${f(s.J)}. The Loss window plots the cost at each step.` },
+  { D: 'six', t: 60, from: 1, sel: 0, open: ALLWIN, focus: 'model', hl: ['w', 'b'],
+    say: s => `Now repeat: every step recomputes all the wires and nudges $w$ and $b$. After ${s.t} steps the cost settles at ${f(s.J)}.` },
+  { D: 'six', t: 60, sel: 8, open: ALLWIN, focus: 'data', hl: ['p'],
+    say: s => `${s.right} of ${s.N} are now called right. Case #${s.c.i} is small but malignant. The model gives it $p = ${f(s.c.p, 2)}$, below 0.5.` },
+  { D: 'six', t: 60, sel: 227, open: ALLWIN, focus: 'data', hl: ['p'],
+    say: s => `Case #${s.c.i} is large but benign, at $p = ${f(s.c.p, 2)}$. Radius alone cannot separate these two.` },
+  { D: 'all', t: 0, sel: 0, open: ALLWIN, focus: 'data', hl: ['J'],
+    say: s => `Now the Data window holds all ${s.N} biopsies. Same wires, same start at $w = b = 0$, now averaged over $N = ${s.N}$.` },
+  { D: 'all', t: 150, from: 0, sel: 0, open: ALLWIN, focus: 'model', hl: ['J'],
+    say: s => `Run the same loop for ${s.t} steps. The cost falls to ${f(s.J)}, the flip radius settles at ${f(s.flip, 2)}, and ${s.right} of ${s.N} are called right.` },
+  { D: 'all', t: 150, sel: 0, open: ALLWIN, focus: 'monitor', hl: [], free: true,
+    say: s => 'Your turn. Drag windows, click any case, scrub the timeline. Keys: ← and → step training, space plays.' },
+];
+let ti = 0, tourPlaying = false, tourTimer = null;
+const dots = $('dots');
+TOUR.forEach((_, k) => { const b = document.createElement('button'); b.setAttribute('aria-label', 'Tour step ' + (k + 1)); b.addEventListener('click', () => go(k)); dots.appendChild(b); });
+
+function go(k, forward = false) {
+  ti = Math.max(0, Math.min(TOUR.length - 1, k));
+  const st = TOUR[ti];
+  stopAnim(); clearTimeout(tourTimer);
+  state.D = st.D; state.sel = st.sel; state.hl = st.hl.slice();
+  state.open = new Set(st.open); state.focus = st.focus;
+  const animate = forward && st.from !== undefined;
+  state.t = animate ? st.from : st.t;
+  applyWindows();
+  const s = render();
+  $('narr').innerHTML = '<span class="t">' + rich(st.say(atStep(st))) + '</span>';
+  $('tourCount').textContent = st.free ? 'Free play' : `Tour ${ti + 1} / ${TOUR.length}`;
+  [...dots.children].forEach((d, j) => { d.className = j === ti ? 'on' : j < ti ? 'done' : ''; });
+  $('tPrev').disabled = ti === 0; $('tNext').disabled = ti === TOUR.length - 1;
+  $('tSkip').textContent = st.free ? 'Restart tour' : 'Explore';
+  if (st.free) tourPlaying = false;
+  $('tPlay').innerHTML = tourPlaying ? PAUSE : PLAY;
+  $('tPlay').setAttribute('aria-label', tourPlaying ? 'Pause tour' : 'Play tour');
+  scrollSelIntoView(); scrollHlIntoView();
+  if (mobile() && WIN[st.focus] && forward) WIN[st.focus].scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+  const after = () => { if (tourPlaying) tourTimer = setTimeout(() => go(ti + 1, true), 2500 + 45 * $('narr').textContent.length); };
+  if (animate) animTo(st.t, after); else after();
+  return s;
+}
+// The narration describes the step's end state, even while it animates toward it.
+function atStep(st) {
+  const keep = state.t; state.t = st.t; const s = snap(); state.t = keep; return s;
+}
+$('tPrev').addEventListener('click', () => go(ti - 1));
+$('tNext').addEventListener('click', () => go(ti + 1, true));
+$('tSkip').addEventListener('click', () => { tourPlaying = false; go(TOUR[ti].free ? 0 : TOUR.length - 1); });
+$('tPlay').addEventListener('click', toggleTour);
+function toggleTour() {
+  tourPlaying = !tourPlaying;
+  if (tourPlaying && TOUR[ti].free) { go(0); return; }
+  if (tourPlaying) go(ti + 1, true); else { clearTimeout(tourTimer); $('tPlay').innerHTML = PLAY; $('tPlay').setAttribute('aria-label', 'Play tour'); }
+}
+document.addEventListener('keydown', e => {
+  if (e.metaKey || e.ctrlKey || e.altKey) return;
+  if (e.target.closest && e.target.closest('input, textarea')) return;
+  const free = TOUR[ti].free;
+  if (e.key === 'ArrowRight') { e.preventDefault(); if (free) $('kFwd').click(); else go(ti + 1, true); }
+  else if (e.key === 'ArrowLeft') { e.preventDefault(); if (free) $('kBack').click(); else go(ti - 1); }
+  else if (e.key === ' ') { e.preventDefault(); if (free) togglePlay(); else toggleTour(); }
+});
+
+window.addEventListener('resize', () => { layout(); render(); });
+layout();
+go(0);
+window.__gd = { state, TR, snap, go, finishAnim, TOUR, batch, SIX };
+</script>
+</body>
+</html>
