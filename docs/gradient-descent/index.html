@@ -205,6 +205,7 @@ footer { border-top: 1px solid var(--line); margin-top: 28px; padding-top: 16px;
 
 <footer>
   <span>Data: Wisconsin Diagnostic Breast Cancer dataset (569 biopsies), as shipped with scikit-learn. Feature: mean radius of the cell nuclei. Scaling uses the mean 14.13 and standard deviation 3.52 of all 569.</span>
+  <span>Accuracy figures are on the same 569 biopsies the model learned from, so they show how well it fits, not how it would do on new patients.</span>
   <span>The six tumors are dataset rows 425, 84, 8, 227, 0 and 302. Model: p = σ(w·x̃ + b), trained by batch gradient descent on the average log loss, starting from w = 0, b = 0.</span>
 </footer>
 </div>

@@ -1,0 +1,969 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>You Teach the Model</title>
+<meta name="description" content="Gradient descent for logistic regression, built up from real biopsies: tune two knobs by hand, grade a fit by surprise, see the landscape, then teach the model one footstep at a time.">
+<meta name="theme-color" content="#f3eee4">
+<meta name="color-scheme" content="light">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Newsreader:opsz,wght@6..72,400;6..72,600;6..72,700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css" integrity="sha384-n8MVd4RsNIU0tAv4ct0nTaAbDJwPJzDEaqSD1odI+WdtXRGWt2kTvGFasHpSy3SV" crossorigin="anonymous">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js" integrity="sha384-XjKyOOlGwcjNTAIQHIpgOno0Hl1YQqzUOEleOLALmuqehneUG+vnGctmUb0ZY0l8" crossorigin="anonymous"></script>
+<style>
+:root {
+  color-scheme: light;
+  --paper: #f3eee4; --sheet: #fffdf8; --ink: #1e1a16; --ink-2: #5f564d; --ink-3: #72675c;
+  --rule: #dcd2c4; --rule-strong: #cbbfae; --edge: rgb(52 38 24 / 0.16); --wash: rgb(52 38 24 / 0.06);
+  --copper: #a64d1d; --copper-line: rgb(166 77 29 / 0.5); --copper-wash: rgb(166 77 29 / 0.13);
+  --indigo: #33589e; --plum: #7a3355; --green: #2e6a4c; --red: #b3261e;
+  --serif: "Newsreader", "Iowan Old Style", Georgia, serif;
+  --sans: "Inter", ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --r1: 4px; --r2: 8px; --r3: 12px;
+  --shadow-2: 0 1px 2px rgb(60 42 22 / 0.08), 0 10px 28px -8px rgb(60 42 22 / 0.24);
+  --shadow-3: 0 2px 4px rgb(60 42 22 / 0.1), 0 28px 64px -16px rgb(60 42 22 / 0.38);
+  --ease: cubic-bezier(0.2, 0.7, 0.2, 1);
+  --guide-h: 0px;
+}
+[hidden] { display: none !important; }
+*, *::before, *::after { box-sizing: border-box; }
+html { background: var(--paper); -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
+body { margin: 0; background: var(--paper); color: var(--ink); font: 400 15px/24px var(--sans); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
+button { font: inherit; color: inherit; }
+:focus-visible { outline: 2px solid var(--copper); outline-offset: 2px; }
+.label { font: 600 11px/16px var(--sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
+.page { width: min(100% - 32px, 1320px); margin: 0 auto; padding: 16px 0 24px; }
+header h1 { font: 400 32px/36px var(--serif); margin: 0 0 2px; letter-spacing: -0.01em; }
+header p { font: 400 16px/24px var(--serif); color: var(--ink-2); margin: 0 0 12px; }
+
+/* Monitor: a slim strip of wires, added as each idea arrives. */
+.monitor { background: var(--sheet); border: 1px solid var(--edge); border-radius: var(--r2); margin-bottom: 14px; }
+.monitor summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 6px 12px; }
+.monitor summary::-webkit-details-marker { display: none; }
+.monitor summary::before { content: "▸"; color: var(--ink-3); font-size: 11px; transition: transform 200ms var(--ease); }
+.monitor[open] summary::before { transform: rotate(90deg); }
+.monitor .empty { font: 400 12px/16px var(--sans); color: var(--ink-3); }
+.chips { display: flex; flex-wrap: wrap; gap: 4px 6px; padding: 0 12px 8px; }
+.chip { white-space: nowrap; flex: none; display: inline-flex; align-items: baseline; gap: 6px; padding: 1px 8px; border: 1px solid var(--rule); border-radius: 12px; font: 400 12px/20px var(--sans); color: var(--ink-2); background: var(--sheet); }
+.chip b { font: 500 12px/20px var(--mono); color: var(--ink); font-variant-numeric: tabular-nums; }
+.chip i { font-style: normal; color: var(--ink-3); }
+.chip.pending { opacity: 0.45; }
+@media (min-width: 1100px) { .chips { flex-wrap: nowrap; overflow-x: auto; } }
+
+/* The desk */
+.desk { display: grid; grid-template-columns: minmax(0, 330px) minmax(0, 1fr) minmax(0, 330px); grid-template-areas: "left center right"; gap: 16px; align-items: start; }
+.col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.c-left { grid-area: left; } .c-center { grid-area: center; } .c-right { grid-area: right; }
+.win { background: var(--sheet); border: 1px solid var(--edge); border-radius: var(--r3); box-shadow: var(--shadow-2); overflow: clip; min-width: 0; --f: 0; transition: box-shadow 280ms var(--ease); }
+.win.focus { --f: 1; box-shadow: var(--shadow-3), 0 0 0 1px var(--copper-line); }
+.tb { height: 36px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 12px 0 14px; border-bottom: 1px solid color-mix(in srgb, var(--copper) calc(var(--f) * 24%), var(--rule)); background: color-mix(in srgb, var(--copper) calc(var(--f) * 7%), transparent); }
+.tt { display: flex; align-items: center; gap: 9px; font: 700 15px/20px var(--serif); }
+.dot { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid color-mix(in srgb, var(--copper) calc(var(--f) * 100%), var(--ink-3)); background: color-mix(in srgb, var(--copper) calc(var(--f) * 100%), transparent); }
+.wc { padding: 12px 14px; }
+.placeholder { font: 400 13px/20px var(--sans); color: var(--ink-3); padding: 18px 14px; }
+
+/* Case */
+.radius { font: 600 30px/36px var(--sans); font-variant-numeric: tabular-nums; margin: 0 0 8px; display: inline-block; padding: 0 4px; margin-left: -4px; }
+.radius small { font: 400 12px/16px var(--sans); color: var(--ink-3); margin-left: 6px; }
+.rows2 { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 12px; align-items: baseline; font: 400 14px/22px var(--sans); margin: 0; }
+.rows2 dt { color: var(--ink-3); } .rows2 dd { margin: 0; min-width: 0; }
+.pbar { position: relative; height: 6px; border-radius: 3px; background: var(--wash); margin-top: 4px; overflow: hidden; max-width: 220px; }
+.pbar i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--copper); border-radius: 3px; }
+.pbar b { position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: var(--ink-3); }
+.idle { color: var(--ink-3); }
+.fb { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.btn { appearance: none; border: 1px solid var(--rule-strong); background: var(--sheet); border-radius: var(--r2); padding: 6px 12px; font: 500 14px/20px var(--sans); cursor: pointer; }
+.btn:hover:not(:disabled) { background: var(--wash); }
+.btn:disabled { opacity: 0.45; cursor: default; }
+.btn.pri { border-color: var(--copper); color: var(--copper); }
+.btn.pulse:not(:disabled) { border-color: var(--copper); box-shadow: 0 0 0 3px var(--copper-wash); }
+.msg { margin: 10px 0 0; font: 400 13px/20px var(--sans); color: var(--ink-2); }
+.msg.warn { color: var(--red); }
+.mchip { display: inline-block; padding: 0 8px; border-radius: 10px; font: 500 12px/20px var(--sans); background: var(--copper-wash); color: var(--copper); }
+
+/* Curve + knobs */
+svg { display: block; width: 100%; height: auto; overflow: visible; }
+.ax { stroke: var(--rule-strong); stroke-width: 1; } .grid { stroke: var(--rule); stroke-width: 1; }
+.tick { font: 400 12px var(--sans); fill: var(--ink-3); }
+.halo { paint-order: stroke; stroke: var(--sheet); stroke-width: 3px; stroke-linejoin: round; }
+.cap { font: 600 11px var(--sans); fill: var(--ink-3); letter-spacing: 0.08em; text-transform: uppercase; }
+.knobs { display: grid; grid-template-columns: max-content minmax(0, 1fr) 48px; gap: 4px 10px; align-items: center; margin-top: 8px; font: 400 13px/20px var(--sans); }
+.knobs label { color: var(--ink-2); white-space: nowrap; }
+.knobs input { width: 100%; accent-color: var(--copper); margin: 0; }
+.knobs output { font: 500 12px/20px var(--mono); text-align: right; font-variant-numeric: tabular-nums; }
+.knobnote { font: 400 12px/18px var(--sans); color: var(--ink-3); margin: 6px 0 0; }
+.grade { display: flex; flex-wrap: wrap; gap: 4px 18px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--rule); }
+.grade div { display: flex; flex-direction: column; padding: 0 4px; margin-left: -4px; }
+.grade b { font: 600 18px/22px var(--sans); font-variant-numeric: tabular-nums; }
+.grade span { font: 400 11px/16px var(--sans); color: var(--ink-3); }
+.grade .soon { opacity: 0.55; }
+
+/* Map */
+.mapbox { position: relative; width: 100%; }
+.mapbox canvas { display: block; width: 100%; height: 100%; position: absolute; inset: 0; border-radius: 6px; }
+.mapbox svg { position: absolute; inset: 0; width: 100%; height: 100%; }
+.stats { display: flex; flex-wrap: wrap; gap: 4px 18px; margin-top: 10px; }
+.stats div { display: flex; flex-direction: column; padding: 0 4px; margin-left: -4px; }
+.stats b { font: 600 18px/22px var(--sans); font-variant-numeric: tabular-nums; }
+.stats span { font: 400 11px/16px var(--sans); color: var(--ink-3); }
+.callback { font: 400 13px/20px var(--sans); color: var(--ink-2); margin: 8px 0 0; }
+
+/* Stage: one idea at a time, drawn large. */
+.stage { position: relative; background: var(--sheet); border: 1px solid var(--edge); border-radius: var(--r3); box-shadow: var(--shadow-2); min-height: 400px; padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; justify-content: center; overflow: hidden; }
+.stage .item { opacity: 0; transform: translateY(10px) scale(0.98); transition: opacity 450ms var(--ease), transform 450ms var(--ease); }
+.stage .item.on { opacity: 1; transform: none; }
+.stage .item.gone { opacity: 0.0; }
+svg .item { opacity: 0; transition: opacity 450ms var(--ease); }
+svg .item.on { opacity: 1; }
+.s-title { font: 400 30px/36px var(--serif); text-align: center; margin: 0; }
+.s-big { font: 600 44px/48px var(--sans); text-align: center; font-variant-numeric: tabular-nums; }
+.s-note { font: 400 15px/22px var(--sans); color: var(--ink-2); text-align: center; margin: 0; }
+.s-tex { text-align: center; font-size: 1.5em; overflow-x: auto; overflow-y: hidden; padding: 4px 0; }
+.s-tex .katex { font-size: 1.15em; }
+.s-card { align-self: center; border: 1px solid var(--rule-strong); border-radius: var(--r2); padding: 14px 20px; background: var(--sheet); min-width: 240px; text-align: center; }
+.s-card .label { display: block; }
+.s-row { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
+.dial { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 10px; border-radius: 8px; }
+.dial svg { width: 74px; height: 74px; }
+.dial b { font: 500 14px/20px var(--mono); }
+.dial span { font: 400 12px/16px var(--sans); color: var(--ink-3); }
+.meter { display: grid; grid-template-columns: max-content minmax(0, 1fr) 44px; gap: 8px 12px; align-items: center; max-width: 560px; width: 100%; align-self: center; }
+.meter > div { display: contents; }
+.meter span { font: 400 14px/20px var(--sans); color: var(--ink-2); padding: 2px 4px; border-radius: 4px; }
+.meter [data-ref] { outline-offset: 1px; }
+.meter i { display: block; height: 14px; background: var(--copper); border-radius: 3px; transform-origin: left; }
+.meter b { font: 500 14px/20px var(--mono); text-align: right; }
+.factors { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
+.factor { border: 1px solid var(--rule); border-radius: var(--r2); padding: 6px 12px; text-align: center; font: 400 13px/18px var(--sans); color: var(--ink-2); }
+.factor b { display: block; font: 600 15px/22px var(--sans); color: var(--ink); }
+.legend3 { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
+.legend3 button { appearance: none; border: 1px solid var(--rule-strong); background: var(--sheet); border-radius: 14px; padding: 2px 10px; font: 500 13px/20px var(--sans); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+.legend3 button i { width: 14px; height: 0; border-top: 2.5px solid currentColor; }
+.stage .mapbox { align-self: center; max-width: 560px; }
+.flyer { position: fixed; z-index: 50; pointer-events: none; transform-origin: 0 0; transition: transform 700ms cubic-bezier(0.5, 0, 0.2, 1), opacity 700ms ease; margin: 0; }
+.landing { animation: land 600ms var(--ease); }
+@keyframes land { from { box-shadow: 0 0 0 6px var(--copper-wash); } to { box-shadow: 0 0 0 0 transparent; } }
+
+/* Guide */
+.guide { background: var(--sheet); border: 1px solid var(--edge); border-radius: var(--r3); box-shadow: var(--shadow-2); padding: 10px 14px; }
+.start { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 0 0 8px; font: 400 13px/20px var(--sans); color: var(--ink-3); }
+.start .btn { background: var(--copper); color: var(--sheet); border-color: var(--copper); }
+.say { font: 400 16px/24px var(--serif); margin: 0 0 6px; min-height: 48px; color: var(--ink-3); }
+.say .now { color: var(--ink); }
+.say .ph { border-radius: 3px; transition: background-color 250ms var(--ease), color 250ms var(--ease); }
+.say .ph.on { color: var(--copper); background: var(--copper-wash); box-shadow: 0 0 0 2px var(--copper-wash); }
+.ctl { display: flex; align-items: center; gap: 8px; }
+.ib { appearance: none; width: 34px; height: 34px; flex: none; border-radius: 50%; border: 1px solid var(--rule-strong); background: var(--sheet); cursor: pointer; display: grid; place-items: center; padding: 0; }
+.ib:hover:not(:disabled) { background: var(--wash); }
+.ib:disabled { opacity: 0.4; cursor: default; }
+.ib.play { border-color: var(--copper); color: var(--copper); }
+.ib svg { width: 14px; height: 14px; }
+.track { flex: 1; min-width: 60px; display: flex; align-items: center; }
+.track input { width: 100%; accent-color: var(--copper); margin: 0; }
+.stepn { font: 500 12px/16px var(--sans); color: var(--ink-3); white-space: nowrap; min-width: 52px; text-align: right; font-variant-numeric: tabular-nums; }
+.keys { font: 400 12px/16px var(--sans); color: var(--ink-3); margin-top: 6px; display: flex; justify-content: space-between; align-items: center; gap: 6px 12px; flex-wrap: wrap; }
+.aud { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
+.tbtn { appearance: none; border: 1px solid var(--rule); background: var(--sheet); border-radius: var(--r1); padding: 3px 8px; min-height: 24px; font: 500 12px/18px var(--sans); color: var(--ink-2); cursor: pointer; }
+.tbtn:hover { background: var(--wash); }
+.tbtn[aria-pressed="false"] { color: var(--ink-3); text-decoration: line-through; }
+kbd { font: 11px/1 var(--mono); padding: 2px 5px; border: 1px solid var(--rule); border-bottom-width: 2px; border-radius: var(--r1); background: var(--sheet); color: var(--ink-2); }
+.help { appearance: none; border: 1px solid var(--rule-strong); background: var(--sheet); width: 18px; height: 18px; border-radius: 50%; font: 600 11px/1 var(--sans); color: var(--ink-3); cursor: pointer; padding: 0; vertical-align: 2px; margin-left: 4px; }
+.help:hover { color: var(--copper); border-color: var(--copper); }
+.detour { position: fixed; z-index: 60; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(100% - 32px, 440px); background: var(--sheet); border: 1px solid var(--edge); border-radius: var(--r3); box-shadow: var(--shadow-3); padding: 16px 18px; }
+.detour h3 { font: 600 18px/24px var(--serif); margin: 0 0 6px; }
+.detour p { margin: 8px 0 0; font: 400 14px/22px var(--sans); color: var(--ink-2); }
+.detour .x { position: absolute; right: 10px; top: 8px; }
+
+/* Highlights: rust outline and soft fill on whatever the voice names; a pulse as it starts, a fade as it ends. */
+[data-ref]:not(svg *) { outline: 2px solid transparent; outline-offset: 3px; transition: outline-color 350ms var(--ease), background-color 350ms var(--ease); border-radius: 6px; }
+svg [data-ref] { transition: filter 350ms var(--ease); }
+@keyframes hlpulse { from { box-shadow: 0 0 0 0 rgb(166 77 29 / 0.45); } to { box-shadow: 0 0 0 10px rgb(166 77 29 / 0); } }
+
+@media (max-width: 1099px) {
+  .desk { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "center center" "left right"; }
+}
+@media (max-width: 719px) {
+  .page { width: calc(100% - 24px); padding-bottom: calc(var(--guide-h) + 16px); }
+  header h1 { font-size: 26px; line-height: 32px; }
+  header p { font-size: 15px; line-height: 22px; }
+  .desk { grid-template-columns: minmax(0, 1fr); grid-template-areas: "center" "left" "right"; }
+  .stage { min-height: 0; height: auto; max-height: 62vh; padding: 12px 14px; gap: 8px; }
+  .s-title { font-size: 22px; line-height: 28px; }
+  .s-big { font-size: 32px; line-height: 36px; }
+  .s-tex { font-size: 1.1em; }
+  .guide { position: fixed; left: 8px; right: 8px; bottom: 8px; z-index: 20; box-shadow: var(--shadow-3); }
+  .say { font-size: 15px; line-height: 22px; min-height: 44px; }
+  .say .sent:not(.now) { display: none; }
+  .keys #phase { display: none; }
+  .keys .k { display: none; }
+}
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
+</style>
+</head>
+<body>
+<div class="page">
+  <header>
+    <h1>You teach the model</h1>
+    <p>Gradient descent, built from 569 real biopsies: two knobs, a grade, a landscape, and footsteps downhill.</p>
+  </header>
+
+  <details class="monitor" id="monitor" open>
+    <summary><span class="label">Monitor</span><span class="empty" id="monEmpty">wires appear here as each idea arrives</span></summary>
+    <div class="chips" id="chips"></div>
+  </details>
+
+  <main class="desk">
+    <div class="col c-left">
+      <section class="win" id="wCase" aria-label="Case" hidden>
+        <div class="tb"><div class="tt"><span class="dot"></span>Case</div><span class="label" id="caseTag"></span></div>
+        <div class="wc">
+          <div class="label" id="caseNo"></div>
+          <div class="radius" data-ref="x" id="caseR"></div>
+          <dl class="rows2">
+            <dt>Model's call</dt><dd><span id="callTxt" data-ref="p call"></span><div class="pbar"><i id="pfill"></i><b></b></div></dd>
+            <dt>Pathology</dt><dd id="truth" data-ref="truth"></dd>
+            <dt>Your mark</dt><dd id="mark"></dd>
+          </dl>
+          <div class="fb" id="fbRow" data-ref="mark">
+            <button class="btn" id="bRight" type="button">Call is right</button>
+            <button class="btn" id="bWrong" type="button">Call is wrong</button>
+          </div>
+          <div class="fb" id="freeRow" hidden>
+            <button class="btn pri" id="bNext" type="button" data-ref="next">Next case</button>
+            <button class="btn" id="bAll" type="button" data-ref="rest">Run the rest</button>
+          </div>
+          <p class="msg" id="msg" hidden></p>
+        </div>
+      </section>
+      <section class="win" id="wCurve" aria-label="Curve" hidden>
+        <div class="tb"><div class="tt"><span class="dot"></span>Curve</div><span class="label" id="curveTag">radius</span></div>
+        <div class="wc">
+          <svg id="curve" viewBox="0 0 300 200" role="img" aria-label="Cases by radius, with the model's curve"></svg>
+          <div id="knobBox" hidden>
+            <div class="knobs" id="knobs">
+              <label for="kw" data-ref="w">w · sensitivity</label><input type="range" id="kw" min="-2" max="8" step="0.01" value="0" data-ref="w"><output id="kwv">0</output>
+              <label for="kb" data-ref="b">b · baseline</label><input type="range" id="kb" min="-4" max="4" step="0.01" value="0" data-ref="b"><output id="kbv">0</output>
+            </div>
+            <p class="knobnote" id="knobNote"></p>
+            <div class="grade">
+              <div data-ref="acc"><b id="gAcc"></b><span>right, of 569</span></div>
+              <div data-ref="loss" id="gJbox"><b id="gJ"></b><span id="gJl">surprise J (explained soon)</span></div>
+            </div>
+          </div>
+        </div>
+      </section>
+    </div>
+
+    <div class="col c-center">
+      <section class="stage" id="stage" aria-live="polite"></section>
+      <nav class="guide" id="guide" aria-label="Guide">
+        <div class="start" id="start">
+          <button class="btn" id="bStart" type="button">Start with sound</button>
+          <span>or read along without sound: use › or the <kbd>→</kbd> key</span>
+        </div>
+        <p class="say" id="say"></p>
+        <div class="ctl">
+          <button class="ib" id="kBack" type="button" aria-label="Back"><svg viewBox="0 0 14 14"><path d="M9 2.5L4.5 7 9 11.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <button class="ib play" id="kPlay" type="button" aria-label="Play"><svg viewBox="0 0 14 14" id="playIcon"><path d="M4 2.5v9l7.5-4.5z" fill="currentColor"/></svg></button>
+          <button class="ib" id="kNext" type="button" aria-label="Next"><svg viewBox="0 0 14 14"><path d="M5 2.5L9.5 7 5 11.5" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg></button>
+          <div class="track"><input type="range" id="scrub" min="0" max="0" value="0" aria-label="Timeline"></div>
+          <span class="stepn" id="stepN"></span>
+        </div>
+        <div class="keys"><span id="phase"></span><span class="aud">
+          <button class="tbtn" id="kSound" type="button" aria-pressed="true">Sound on</button>
+          <button class="tbtn" id="kReplay" type="button">Replay</button>
+          <button class="tbtn" id="kRate" type="button" aria-label="Speech speed">1×</button>
+          <span class="k"><kbd>←</kbd> <kbd>→</kbd> <kbd>space</kbd></span>
+        </span></div>
+      </nav>
+    </div>
+
+    <div class="col c-right">
+      <section class="win" id="wMap" aria-label="Map" hidden>
+        <div class="tb"><div class="tt"><span class="dot"></span>Map</div><span class="label" style="text-transform:none;letter-spacing:0">grade J for every w, b</span></div>
+        <div class="wc">
+          <div class="mapbox" id="mapPanel" data-ref="map"></div>
+          <div class="stats">
+            <div><b id="mJ"></b><span>surprise J</span></div>
+            <div data-ref="acc"><b id="mAcc"></b><span>right, of 569</span></div>
+            <div data-ref="flip"><b id="mFlip"></b><span>flip radius</span></div>
+          </div>
+          <p class="callback" id="callback" hidden></p>
+        </div>
+      </section>
+    </div>
+  </main>
+</div>
+<div class="detour" id="detour" role="dialog" aria-modal="false" hidden><button class="tbtn x" id="detourX" type="button">Close</button><h3 id="detourH"></h3><div id="detourB"></div></div>
+
+<script>
+const DATA = {"r":[17.99,20.57,19.69,11.42,20.29,12.45,18.25,13.71,13,12.46,16.02,15.78,19.17,15.85,13.73,14.54,14.68,16.13,19.81,13.54,13.08,9.5,15.34,21.16,16.65,17.14,14.58,18.61,15.3,17.57,18.63,11.84,17.02,19.27,16.13,16.74,14.25,13.03,14.99,13.48,13.44,10.95,19.07,13.28,13.17,18.65,8.2,13.17,12.05,13.49,11.76,13.64,11.94,18.22,15.1,11.52,19.21,14.71,13.05,8.62,10.17,8.6,14.25,9.17,12.68,14.78,9.46,11.31,9.03,12.78,18.94,8.89,17.2,13.8,12.31,16.07,13.53,18.05,20.18,12.86,11.45,13.34,25.22,19.1,12,18.46,14.48,19.02,12.36,14.64,14.62,15.37,13.27,13.45,15.06,20.26,12.18,9.79,11.6,14.42,13.61,6.98,12.18,9.88,10.49,13.11,11.64,12.36,22.27,11.34,9.78,12.63,14.26,10.51,8.73,11.93,8.95,14.87,15.78,17.95,11.41,18.66,24.25,14.5,13.37,13.85,13.61,19,15.1,19.79,12.19,15.46,16.16,15.71,18.45,12.77,11.71,11.43,14.95,11.28,9.74,16.11,11.43,12.9,10.75,11.9,11.8,14.95,14.44,13.74,13,8.22,9.73,11.15,13.15,12.25,17.68,16.84,12.06,10.9,11.75,19.19,19.59,12.34,23.27,14.97,10.8,16.78,17.47,14.97,12.32,13.43,15.46,11.08,10.66,8.67,9.9,16.46,13.01,12.81,27.22,21.09,15.7,11.41,15.28,10.08,18.31,11.71,11.81,12.3,14.22,12.77,9.72,12.34,14.86,12.91,13.77,18.08,19.18,14.45,12.23,17.54,23.29,13.81,12.47,15.12,9.88,17.01,13.11,15.27,20.58,11.84,28.11,17.42,14.19,13.86,11.89,10.2,19.8,19.53,13.65,13.56,10.18,15.75,13.27,14.34,10.44,15,12.62,12.83,17.05,11.32,11.22,20.51,9.57,14.03,23.21,20.48,14.22,17.46,13.64,12.42,11.3,13.75,19.4,10.48,13.2,12.89,10.65,11.52,20.94,11.5,19.73,17.3,19.45,13.96,19.55,15.32,15.66,15.53,20.31,17.35,17.29,15.61,17.19,20.73,10.6,13.59,12.87,10.71,14.29,11.29,21.75,9.74,17.93,11.89,11.33,18.81,13.59,13.85,19.16,11.74,19.4,16.24,12.89,12.58,11.94,12.89,11.26,11.37,14.41,14.96,12.95,11.85,12.72,13.77,10.91,11.76,14.26,10.51,19.53,12.46,20.09,10.49,11.46,11.6,13.2,9,13.5,13.05,11.7,14.61,12.76,11.54,8.6,12.49,12.18,18.22,9.04,12.43,10.25,20.16,12.86,20.34,12.2,12.67,14.11,12.03,16.27,16.26,16.03,12.98,11.22,11.25,12.3,17.06,12.99,18.77,10.05,23.51,14.42,9.61,11.06,19.68,11.71,10.26,12.06,14.76,11.47,11.95,11.66,15.75,25.73,15.08,11.14,12.56,13.05,13.87,8.88,9.44,12.54,13.3,12.76,16.5,13.4,20.44,20.2,12.21,21.71,22.01,16.35,15.19,21.37,20.64,13.69,16.17,10.57,13.46,13.66,11.08,11.27,11.04,12.05,12.39,13.28,14.6,12.21,13.88,11.27,19.55,10.26,8.73,15.49,21.61,12.1,14.06,13.51,12.8,11.06,11.8,17.91,11.93,12.96,12.94,12.34,10.94,16.14,12.85,17.99,12.27,11.36,11.04,9.4,14.99,15.13,11.89,9.4,15.5,12.7,11.16,11.57,14.69,11.61,13.66,9.74,10.03,10.48,10.8,11.13,12.72,14.9,12.4,20.18,18.82,14.86,13.98,12.87,14.04,13.85,14.02,10.97,17.27,13.78,10.57,18.03,11.99,17.75,14.8,14.53,21.1,11.87,19.59,12,14.53,12.62,13.38,11.63,13.21,13,9.76,17.08,27.42,14.4,11.6,13.17,13.24,13.14,9.67,17.6,11.62,9.67,12.04,14.92,12.27,10.88,12.83,14.2,13.9,11.49,16.25,12.16,13.9,13.47,13.7,15.73,12.45,14.64,19.44,11.68,16.69,12.25,17.85,18.01,12.46,13.16,14.87,12.65,12.47,18.49,20.59,15.04,13.82,12.54,23.09,9.27,9.68,12.22,11.06,16.3,15.46,11.74,14.81,13.4,14.58,15.05,11.34,18.31,19.89,12.88,12.75,9.29,24.63,11.26,13.71,9.85,8.57,13.46,12.34,13.94,12.07,11.75,11.67,13.68,20.47,10.96,20.55,14.27,11.69,7.73,7.69,11.54,14.47,14.74,13.21,13.87,13.62,10.32,10.26,9.68,10.82,10.86,11.13,12.77,9.33,12.88,10.29,10.16,9.42,14.59,11.51,14.05,11.2,15.22,20.92,21.56,20.13,16.6,20.6,7.76],"y":[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,0,1,0,0,0,0,0,1,1,0,1,1,0,0,0,0,1,0,1,1,0,0,0,0,1,0,1,1,0,1,0,1,1,0,0,0,1,1,0,1,1,1,0,0,0,1,0,0,1,1,0,0,0,1,1,0,0,0,0,1,0,0,1,0,0,0,0,0,0,0,0,1,1,1,0,1,1,0,0,0,1,1,0,1,0,1,1,0,1,1,0,0,1,0,0,1,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,1,1,0,1,0,0,1,1,0,0,1,1,0,0,0,0,1,0,0,1,1,1,0,1,0,1,0,0,0,1,0,0,1,1,0,1,1,1,1,0,1,1,1,0,1,0,1,0,0,1,0,1,1,1,1,0,0,1,1,0,0,0,1,0,0,0,0,0,1,1,0,0,1,0,0,1,1,0,1,0,0,0,0,1,0,0,0,0,0,1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,1,0,1,0,0,1,0,0,1,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1,0,1,0,0,0,0,1,1,1,0,0,0,0,1,0,1,0,1,0,0,0,1,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0,1,1,0,1,1,1,0,1,1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,1,0,0,1,1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,1,0,1,0,0,0,0,0,1,0,0,1,0,1,0,0,1,0,1,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,1,0,0,1,0,0,0,0,0,1,1,0,1,0,1,0,0,0,0,0,1,0,0,1,0,1,0,1,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,1,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,0]};
+// Voice clips: duration (d), caption sentences (s), highlights (h: start, end, ref), stage draws (D), docks (K), cue (c).
+const VOICE = {"v01":{"d":13.04,"h":[[5.52,8.27,"x"],[12.04,13.23,"dots"]],"D":[[0.16,"card"],[2.56,"q"],[8.04,"dots"]],"K":[[8.04,"x"],[13.22,"dots"]],"c":8.04,"s":[[0.16,"One biopsy, one question: is it malignant?"],[3.84,"The model gets one number: <span class=\"ph\" data-h=\"0\">the mean radius of the cell nuclei.</span>"],[8.04,"Here are all five hundred sixty-nine."],[10.32,"Big ones lean malignant, <span class=\"ph\" data-h=\"1\">but they overlap.</span>"]]},"v02":{"d":9.76,"h":[[4.32,7.07,"ruler"],[6.96,9.87,"xt"]],"D":[[0.0,"spread"],[4.32,"ruler"],[6.96,"xtf"],[6.96,"pin"]],"K":[[9.94,"xt"]],"c":6.96,"s":[[0.0,"Before the model uses it, we measure every radius on one ruler: <span class=\"ph\" data-h=\"0\">how many typical distances from the average.</span>"],[6.96,"<span class=\"ph\" data-h=\"1\">This one sits about one typical distance above.</span>"]]},"v03":{"d":9.76,"h":[[3.76,5.79,"w"],[7.2,9.47,"b"]],"D":[[0.0,"zf"],[3.76,"kw"],[7.2,"kb"]],"K":[[9.2,"knobs"]],"c":7.2,"s":[[0.0,"The model&#x27;s score is a straight line, set by two knobs."],[3.76,"<span class=\"ph\" data-h=\"0\">w is sensitivity:</span> how much radius matters."],[7.2,"<span class=\"ph\" data-h=\"1\">b is the baseline lean.</span>"],[9.2,"Try them."]]},"v04":{"d":12.8,"h":[[5.52,9.95,"bulb"],[9.72,11.87,"p"]],"D":[[0.0,"dimmer"],[9.72,"sig"]],"K":[[11.6,"p"]],"c":9.72,"s":[[0.0,"A score can be any size, but we want a probability."],[3.72,"So it goes through a dimmer: <span class=\"ph\" data-h=\"0\">big scores push toward one, small toward zero, never past.</span>"],[9.72,"<span class=\"ph\" data-h=\"1\">That dimmer is the sigmoid.</span>"],[11.6,"Now fit the dots."]]},"v05":{"d":12.08,"h":[[4.4,7.39,"stairs"],[9.28,12.27,"same"]],"D":[[0.0,"stairs"],[9.28,"same"]],"K":[],"c":9.28,"s":[[0.0,"But how good is your fit?"],[1.92,"Counting mistakes is a bad guide."],[4.4,"<span class=\"ph\" data-h=\"0\">Nudge a knob, and the count usually doesn&#x27;t budge</span>: no hint which way to turn."],[9.28,"<span class=\"ph\" data-h=\"1\">And a near miss counts the same as a wild one.</span>"]]},"v06":{"d":15.36,"h":[[4.0,6.75,"m1"],[6.64,8.51,"m2"],[8.72,10.43,"m3"],[13.84,15.47,"loss"]],"D":[[0.0,"meter"],[11.52,"Lf"],[13.84,"bowl"]],"K":[[15.54,"J"]],"c":10.22,"s":[[0.0,"Better: ask how surprised the model should be by the truth."],[4.0,"<span class=\"ph\" data-h=\"0\">Sure and right: almost none.</span>"],[6.64,"<span class=\"ph\" data-h=\"1\">A coin flip: some.</span>"],[8.72,"<span class=\"ph\" data-h=\"2\">Sure and wrong:</span> a lot."],[11.52,"Average that surprise over every case, <span class=\"ph\" data-h=\"3\">and you get a smooth grade.</span>"]]},"v07":{"d":11.12,"h":[[3.48,5.07,"map"],[4.96,6.59,"you"],[6.64,9.15,"bottom"]],"D":[[0.0,"map"],[4.96,"you"],[6.64,"bottom"]],"K":[[11.3,"map"]],"c":6.64,"s":[[0.0,"Every setting of the knobs has a grade."],[2.48,"Lay them all out, <span class=\"ph\" data-h=\"0\">and you get a landscape.</span>"],[4.96,"<span class=\"ph\" data-h=\"1\">Your fit is here.</span>"],[6.64,"<span class=\"ph\" data-h=\"2\">The best fit is the bottom of the valley.</span>"],[9.28,"Learning means walking down."]]},"v08":{"d":10.56,"h":[[3.96,6.47,"arrow"]],"D":[[0.0,"fog"],[3.96,"arrow"],[6.4,"one"]],"K":[[10.74,"hiker"]],"c":6.4,"s":[[0.0,"But the model can&#x27;t see the landscape."],[2.4,"It&#x27;s a hiker in fog, <span class=\"ph\" data-h=\"0\">feeling only the slope underfoot.</span>"],[6.4,"And it feels it one case at a time: a rough guess, but fast."]]},"v09":{"d":16.64,"h":[[2.8,5.31,"err"],[5.44,8.67,"xt"],[8.36,11.47,"ghost"],[11.6,13.79,"eta"],[14.64,16.75,"map"]],"D":[[0.0,"rule"],[2.8,"f1"],[5.44,"f2"],[8.36,"ghost"],[11.6,"f3"],[14.64,"nums"]],"K":[[16.82,"dw"]],"c":14.64,"s":[[0.0,"Each mark moves the knobs one footstep."],[2.8,"<span class=\"ph\" data-h=\"0\">The error says which way and how far.</span>"],[5.44,"<span class=\"ph\" data-h=\"1\">The input says how much the radius is to blame:</span> <span class=\"ph\" data-h=\"2\">an average-size biopsy wouldn&#x27;t move w at all.</span>"],[11.6,"<span class=\"ph\" data-h=\"3\">The step size says how bold.</span>"],[14.64,"<span class=\"ph\" data-h=\"4\">Here, one step downhill.</span>"]]},"w302":{"d":4.88,"h":[[0.0,2.75,"p"],[4.0,4.99,"step"]],"D":[],"K":[],"c":4.0,"s":[[0.0,"<span class=\"ph\" data-h=\"0\">Point five six, and right</span>, but unsure: <span class=\"ph\" data-h=\"1\">still a step.</span>"]]},"w84":{"d":2.32,"h":[[1.04,2.43,"step"]],"D":[],"K":[],"c":1.04,"s":[[0.0,"Right again."],[1.04,"<span class=\"ph\" data-h=\"0\">A smaller step.</span>"]]},"w0":{"d":3.2,"h":[[0.0,3.31,"map"]],"D":[],"K":[],"c":0.0,"s":[[0.0,"<span class=\"ph\" data-h=\"0\">Each step wobbles, but the path heads down.</span>"]]},"w40":{"d":3.84,"h":[[1.84,4.03,"map"]],"D":[],"K":[],"c":1.84,"s":[[0.0,"Forty more cases."],[1.84,"<span class=\"ph\" data-h=\"0\">Watch the path find the valley.</span>"]]},"w212":{"d":2.32,"h":[[0.24,2.51,"p"]],"D":[],"K":[],"s":[[0.24,"<span class=\"ph\" data-h=\"0\">Very sure, and right.</span>"]]},"w491":{"d":4.56,"h":[[0.0,2.83,"p"],[2.88,4.67,"truth"]],"D":[],"K":[],"s":[[0.0,"<span class=\"ph\" data-h=\"0\">Ninety-two percent sure: malignant.</span>"],[2.88,"<span class=\"ph\" data-h=\"1\">The report says benign.</span>"]]},"wIns":{"d":3.2,"h":[[0.0,3.31,"pair"]],"D":[[0.0,"pair"]],"K":[],"c":0.0,"s":[[0.0,"<span class=\"ph\" data-h=\"0\">A confident miss takes the longest stride.</span>"]]},"v11":{"d":8.32,"h":[[1.84,3.67,"h1"],[3.52,6.59,"h3"],[6.48,8.51,"h2"]],"D":[[0.0,"three"]],"K":[],"c":1.84,"s":[[0.0,"Step size matters."],[1.84,"<span class=\"ph\" data-h=\"0\">Too timid creeps.</span>"],[3.52,"<span class=\"ph\" data-h=\"1\">Too bold leaps across the valley and back.</span>"],[6.48,"<span class=\"ph\" data-h=\"2\">In between, it arrives.</span>"]]},"g05":{"d":7.84,"h":[[1.04,3.31,"truth"],[3.36,5.15,"call"],[5.92,7.95,"mark"]],"D":[],"K":[],"s":[[0.0,"Your turn."],[1.04,"<span class=\"ph\" data-h=\"0\">The pathology report says benign</span>."],[3.36,"<span class=\"ph\" data-h=\"1\">The model said malignant</span>."],[5.92,"<span class=\"ph\" data-h=\"2\">Is the call right, or wrong?</span>"]]},"g16":{"d":5.2,"h":[[1.04,2.43,"step"]],"D":[],"K":[],"c":1.04,"s":[[0.16,"And..."],[1.04,"<span class=\"ph\" data-h=\"0\">it barely moved</span>."],[2.64,"Nothing to fix, so nothing changes."]]},"g18":{"d":8.88,"h":[[3.08,4.11,"step"],[4.24,9.07,"flip"]],"D":[],"K":[],"c":2.32,"s":[[0.16,"Wrong, and confident!"],[2.32,"So here comes <span class=\"ph\" data-h=\"0\">a big step</span>."],[4.24,"<span class=\"ph\" data-h=\"1\">The flip point jumps from fourteen point six seven to fifteen point five one</span>."]]},"g19":{"d":6.24,"h":[[1.2,2.43,"mark"],[2.72,3.71,"next"],[5.44,6.43,"rest"]],"D":[],"K":[],"s":[[0.0,"Your turn now."],[1.2,"<span class=\"ph\" data-h=\"0\">Mark each call</span>, and press <span class=\"ph\" data-h=\"1\">next case</span> for more."],[4.32,"When you&#x27;ve seen enough, <span class=\"ph\" data-h=\"2\">run the rest</span>."]]},"done":{"d":13.76,"h":[[4.68,7.95,"flip"],[8.32,10.27,"acc"]],"D":[],"K":[],"c":4.68,"s":[[0.0,"All five hundred sixty-nine biopsies, one step each."],[4.68,"<span class=\"ph\" data-h=\"0\">The model flips to malignant at fourteen point eight three</span>, and gets <span class=\"ph\" data-h=\"1\">eighty-eight point two percent right</span>."],[10.56,"Full-batch gradient descent lands almost exactly there."]]},"mR":{"d":1.44,"h":[[0.0,0.83,"mark"]],"D":[],"K":[],"s":[[0.0,"<span class=\"ph\" data-h=\"0\">Right</span>."],[0.88,"Noted."]]},"mW":{"d":2.56,"h":[[0.16,1.07,"mark"]],"D":[],"K":[],"s":[[0.16,"<span class=\"ph\" data-h=\"0\">Wrong</span>."],[1.2,"Let&#x27;s see what it learns."]]},"t1":{"d":1.6,"h":[[0.24,1.55,"step"]],"D":[],"K":[],"s":[[0.24,"<span class=\"ph\" data-h=\"0\">Barely moved</span>."]]},"t2":{"d":1.6,"h":[[0.24,1.55,"step"]],"D":[],"K":[],"s":[[0.24,"<span class=\"ph\" data-h=\"0\">Hardly a nudge</span>."]]},"s1":{"d":1.2,"h":[[0.0,1.31,"step"]],"D":[],"K":[],"s":[[0.0,"<span class=\"ph\" data-h=\"0\">Small nudge</span>."]]},"s2":{"d":1.36,"h":[[0.0,1.55,"step"]],"D":[],"K":[],"s":[[0.0,"<span class=\"ph\" data-h=\"0\">A little correction</span>."]]},"m1":{"d":3.68,"h":[[2.72,3.87,"step"]],"D":[],"K":[],"s":[[0.0,"Missed, but it wasn&#x27;t sure."],[2.72,"<span class=\"ph\" data-h=\"0\">A medium step</span>."]]},"m2":{"d":2.32,"h":[[1.2,2.43,"step"]],"D":[],"K":[],"s":[[0.0,"Wrong call."],[1.2,"<span class=\"ph\" data-h=\"0\">A decent step</span>."]]},"b1":{"d":1.36,"h":[[0.16,1.31,"step"]],"D":[],"K":[],"s":[[0.16,"<span class=\"ph\" data-h=\"0\">Big one!</span>"]]},"b2":{"d":3.12,"h":[[2.16,3.23,"step"]],"D":[],"K":[],"s":[[0.16,"Wrong, and confident."],[2.16,"<span class=\"ph\" data-h=\"0\">Here it comes!</span>"]]}};
+const MU = 14.127291739894552, SD = 3.520950760711062, ETA = 0.5, N = DATA.r.length;
+const X = DATA.r.map(r => (r - MU) / SD), Yv = DATA.y;
+
+// ---- The fixed teaching order: four warm-up cases, 40 from a seeded shuffle, two contrast cases, then the rest.
+function rng(s) { return () => { s |= 0; s = s + 0x6D2B79F5 | 0; let t = Math.imul(s ^ s >>> 15, 1 | s); t = t + Math.imul(t ^ t >>> 7, 61 | t) ^ t; return ((t ^ t >>> 14) >>> 0) / 4294967296; }; }
+const ORDER = (() => {
+  const lead = [425, 302, 84, 0], con = [212, 491], r = rng(5);
+  const rest = [...Array(N).keys()].filter(i => !lead.includes(i) && !con.includes(i));
+  for (let i = rest.length - 1; i > 0; i--) { const j = Math.floor(r() * (i + 1)); [rest[i], rest[j]] = [rest[j], rest[i]]; }
+  return lead.concat(rest.slice(0, 40), con, rest.slice(40));
+})();
+const sig = z => 1 / (1 + Math.exp(-z));
+function Jof(w, b) { let s = 0; for (let i = 0; i < N; i++) { const p = sig(w * X[i] + b); s -= Yv[i] ? Math.log(Math.max(p, 1e-12)) : Math.log(Math.max(1 - p, 1e-12)); } return s / N; }
+function accOf(w, b) { let c = 0; for (let i = 0; i < N; i++) c += ((w * X[i] + b >= 0 ? 1 : 0) === Yv[i]); return c / N; }
+const flipOf = (w, b) => w > 0 ? MU - b / w * SD : NaN;
+function sgd(eta) {
+  const P = [[0, 0]], C = []; let w = 0, b = 0;
+  for (let k = 0; k < N; k++) {
+    const i = ORDER[k], xt = X[i], y = Yv[i], p = sig(w * xt + b), err = y - p, dw = eta * err * xt, db = eta * err;
+    C.push({ k, i, x: DATA.r[i], y, xt, w, b, z: w * xt + b, p, call: p >= 0.5 ? 1 : 0, L: -(y ? Math.log(p) : Math.log(1 - p)), err, dw, db });
+    w += dw; b += db; P.push([w, b]);
+  }
+  return { P, C };
+}
+const RUN = sgd(ETA), CASES = RUN.C, PATH = RUN.P;
+const PATHS = { 0.05: sgd(0.05).P, 0.5: PATH, 5: sgd(5).P };
+const BEST = (() => { let w = 0, b = 0; for (let it = 0; it < 1500; it++) { let gw = 0, gb = 0; for (let i = 0; i < N; i++) { const e = Yv[i] - sig(w * X[i] + b); gw += e * X[i]; gb += e; } w += 1.5 * gw / N; b += 1.5 * gb / N; } return { w, b }; })();
+const memo = new Map();
+const stat = (w, b) => { const key = w.toFixed(4) + ',' + b.toFixed(4); if (!memo.has(key)) memo.set(key, { J: Jof(w, b), acc: accOf(w, b) }); return memo.get(key); };
+
+// ---- Formatting: a real minus sign; enough digits that a tiny number is not shown as 0.
+const M = s => s.replace(/-/g, '\u2212');
+function f(v, d = 2) { if (v === 0) return '0'; const a = Math.abs(v); let dd = d; if (a < Math.pow(10, -d)) dd = Math.min(8, Math.ceil(-Math.log10(a)) + 1); return M(v.toFixed(dd)); }
+const fs = (v, d) => (v > 0 ? '+' : '') + f(v, d);
+function fp(p) { if (p > 0.999) { const dd = Math.min(8, Math.ceil(-Math.log10(1 - p)) + 1); return p.toFixed(dd); } return p.toFixed(2); }
+const pct = v => (v * 100).toFixed(1) + '%';
+const word = y => y ? 'malignant' : 'benign';
+const $ = id => document.getElementById(id);
+function tex(src) { if (window.katex) { try { return katex.renderToString(src, { throwOnError: false, trust: true, strict: 'ignore' }); } catch (e) {} } return src; }
+// \htmlClass{r-ref}{…} in a formula becomes a highlightable part with data-ref="ref".
+function texInto(el, src) { el.innerHTML = tex(src); el.querySelectorAll('[class*="r-"]').forEach(n => { const m = [...n.classList].find(c => c.startsWith('r-')); if (m) n.dataset.ref = m.slice(2); }); }
+const SVGNS = 'http://www.w3.org/2000/svg';
+function el(tag, attrs, parent) { const e = document.createElementNS(SVGNS, tag); for (const k in attrs) if (attrs[k] !== undefined) e.setAttribute(k, attrs[k]); if (parent) parent.appendChild(e); return e; }
+const jit = i => ((i * 0.61803398875) % 1) - 0.5;
+
+// ---- The user's own knobs, and their best hand-fit (lowest J) while they held them.
+const knob = { w: 0, b: 0 };
+let handBest = null;
+const handFit = () => handBest || (knob.w || knob.b ? { w: knob.w, b: knob.b, ...stat(knob.w, knob.b) } : null);
+
+// ---- World: everything the panels show. Each step starts from the world the previous step ended with.
+const W0 = { panels: [], chips: [], caseK: 45, level: 'x', curve: { dots: false, sd: false, mode: 'none', knobs: false }, grade: false, map: { you: false, bottom: false, hiker: false }, n: null };
+const clone = w => JSON.parse(JSON.stringify(w));
+const add = (arr, ...xs) => { for (const x of xs) if (!arr.includes(x)) arr.push(x); };
+
+const ask = (k, clip, extra = {}) => ({ clip, stage: 'ask', ask: true, muts: { start: w => { w.caseK = k; w.level = 'ask'; } }, text: clip ? null : c => `Biopsy ${c.k + 1}: radius ${f(c.x)}. The model says ${word(c.call)}, p = ${fp(c.p)}. The report says ${word(c.y)}. Mark the call.`, ...extra });
+const upd = (k, clip, extra = {}) => ({ clip, stage: 'step', muts: { start: w => { w.caseK = k; w.level = 'y'; }, cue: w => { w.n = k + 1; w.level = 'upd'; } }, ...extra });
+const GUIDED = [
+  { clip: 'v01', stage: 'question', win: 'stage', muts: { 'dock:x': w => { add(w.panels, 'case'); add(w.chips, 'x'); }, 'dock:dots': w => { add(w.panels, 'curve'); w.curve.dots = true; } } },
+  { clip: 'v02', stage: 'ruler', muts: { 'dock:xt': w => { add(w.chips, 'xt'); w.curve.sd = true; } } },
+  { clip: 'v03', stage: 'knobs', hands: true, muts: { 'dock:knobs': w => { w.curve.knobs = true; w.curve.mode = 'line'; w.level = 'live'; add(w.chips, 'w', 'b', 'z'); } } },
+  { clip: 'v04', stage: 'dimmer', hands: true, muts: { cue: w => { w.curve.mode = 'S'; }, 'dock:p': w => { add(w.chips, 'p'); } } },
+  { clip: 'v05', stage: 'count', hands: true },
+  { clip: 'v06', stage: 'surprise', hands: true, muts: { 'dock:J': w => { w.grade = true; add(w.chips, 'L'); } } },
+  { clip: 'v07', stage: 'land', muts: { 'dock:map': w => { add(w.panels, 'map'); w.map.you = true; w.map.bottom = true; } } },
+  { clip: 'v08', stage: 'fog', muts: { 'dock:hiker': w => { w.map.hiker = true; w.n = 0; } } },
+  ask(0, 'g05', { text: null }),
+  { clip: 'v09', markReact: true, stage: 'rule', muts: { start: w => { w.caseK = 0; w.level = 'y'; add(w.chips, 'err'); }, cue: w => { w.n = 1; w.level = 'upd'; }, 'dock:dw': w => { add(w.chips, 'dw', 'db', 'eta'); } } },
+  ask(1, null), upd(1, 'w302'),
+  ask(2, null), upd(2, 'w84'),
+  ask(3, null), upd(3, 'w0'),
+  { clip: 'w40', stage: 'fast', muts: { start: w => { w.level = 'none'; }, cue: w => { w.n = 44; } } },
+  ask(44, 'w212'), upd(44, 'g16'),
+  ask(45, 'w491'), upd(45, 'g18', { markReact: true }),
+  { clip: 'wIns', stage: 'pair' },
+  { clip: 'v11', stage: 'three', hands: true },
+  ask(46, 'g19', { free: true, text: null }),
+];
+const YOUR_TURN = GUIDED.length - 1;
+// Free play: one short reaction per footstep, picked by how far off the call was (|y − p|), never the same clip twice in a row.
+const BUCKETS = [[0.1, ['t1', 't2']], [0.5, ['s1', 's2']], [0.75, ['m1', 'm2']], [Infinity, ['b1', 'b2']]];
+const turn = {};
+function reactionFor(c) { const [lim, ids] = BUCKETS.find(([l]) => Math.abs(c.err) < l); turn[lim] = ((turn[lim] ?? -1) + 1) % 2; return ids[turn[lim]]; }
+function freeStep(k, ph) {
+  if (ph === 'ask') return ask(k, null, { free: true });
+  const react = reactionFor(CASES[k]);
+  return { react: react, stage: 'step', free: true, muts: { start: w => { w.caseK = k; w.level = 'upd'; w.n = k + 1; } }, text: c => `${VOICE[react].s.map(x => x[1].replace(/<[^>]+>/g, '')).join(' ')} Δw = ${fs(c.dw, 3)}, Δb = ${fs(c.db, 3)}.` };
+}
+const doneStep = () => ({ clip: 'done', stage: 'done', free: true, muts: { start: w => { w.level = 'none'; }, cue: w => { w.n = N; } } });
+
+let steps = GUIDED.slice(), pos = 0, playing = false, timer = null, doneAt = -1;
+const worlds = []; // worlds[i] = world at the start of step i
+function endWorld(i) { const w = clone(worldAt(i)); const m = steps[i].muts || {}; for (const k in m) if (k !== 'start') m[k](w); return w; }
+function worldAt(i) {
+  if (worlds[i]) return worlds[i];
+  const w = i === 0 ? clone(W0) : endWorld(i - 1);
+  if (steps[i].muts && steps[i].muts.start) steps[i].muts.start(w);
+  return (worlds[i] = w);
+}
+let live = null; // the world now on screen
+
+// ---- What the panels show for a world
+const modelWB = w => w.n === null ? [knob.w, knob.b] : [PATH[w.n][0], PATH[w.n][1]];
+function caseView(w) {
+  const k = w.caseK, base = CASES[k], [mw, mb] = modelWB(w);
+  // CASES[k] holds case k as the model saw it after k footsteps; any other moment is recomputed from the w, b on screen.
+  if (w.n !== null && (w.n === k || w.n === k + 1)) return base;
+  const z = mw * base.xt + mb, p = sig(z), err = base.y - p;
+  return { ...base, w: mw, b: mb, z, p, call: p >= 0.5 ? 1 : 0, L: -(base.y ? Math.log(p) : Math.log(1 - p)), err, dw: ETA * err * base.xt, db: ETA * err };
+}
+const LEVELS = { none: 0, x: 1, live: 2, ask: 2, y: 3, upd: 4 };
+const CHIP = {
+  x: ['x', 'radius', c => f(c.x)], xt: ['x̃', 'in sd', c => fs(c.xt)], w: ['w', 'sensitivity', (c, w) => f(modelWB(w)[0])], b: ['b', 'baseline', (c, w) => f(modelWB(w)[1])],
+  z: ['z', 'score', c => f(c.z)], p: ['p', 'probability', c => c.p > 0.999 ? '>0.999' : fp(c.p)], L: ['L', 'surprise', c => c.L < 0.001 ? '<0.001' : f(c.L)], err: ['y−p', 'error', c => Math.abs(c.err) < 0.001 ? (c.err > 0 ? '+' : '−') + '<0.001' : fs(c.err)],
+  dw: ['Δw', 'step', c => Math.abs(c.dw) < 0.001 ? '≈0' : fs(c.dw, 3)], db: ['Δb', 'step', c => Math.abs(c.db) < 0.001 ? '≈0' : fs(c.db, 3)], eta: ['η', 'step size', () => '0.5'],
+};
+const CHIPREF = { w: 'w step', b: 'b step', dw: 'dw step', db: 'db step', L: 'L', err: 'err', eta: 'eta' };
+const NEED = { x: 1, xt: 1, w: 0, b: 0, z: 2, p: 2, L: 3, err: 3, dw: 4, db: 4, eta: 0 };
+function renderChips(w) {
+  const box = $('chips'), c = caseView(w), lv = LEVELS[w.level] + (w.level === 'live' ? 1 : 0);
+  $('monEmpty').hidden = w.chips.length > 0;
+  box.innerHTML = '';
+  for (const id of ['x', 'xt', 'w', 'b', 'z', 'p', 'L', 'err', 'dw', 'db', 'eta']) {
+    if (!w.chips.includes(id)) continue;
+    const [sym, gloss, val] = CHIP[id], wb = id === 'w' || id === 'b', show = wb || (w.level !== 'none' && (lv >= NEED[id] || w.level === 'live'));
+    const s = document.createElement('span'); s.className = 'chip'; s.dataset.ref = CHIPREF[id] || id; s.dataset.chip = id;
+    s.innerHTML = `${sym} <i>${gloss}</i> <b>${show ? val(c, w) : '–'}</b>`; if (!show) s.classList.add('pending');
+    box.appendChild(s);
+  }
+}
+function renderCase(w, s) {
+  $('wCase').hidden = !w.panels.includes('case');
+  const c = caseView(w), lv = LEVELS[w.level];
+  $('caseNo').textContent = w.level === 'none' ? (w.n >= N ? `All ${N} biopsies taught` : `${w.n} biopsies taught`) : w.n === null ? 'An example biopsy' : `Biopsy ${c.k + 1} of ${N}`;
+  $('caseR').innerHTML = lv >= 1 ? `${f(c.x)}<small>mean radius</small>` : '';
+  $('wCase').querySelector('.rows2').hidden = lv === 0;
+  const seen = lv >= 2;
+  $('callTxt').textContent = seen ? `${word(c.call)} · p = ${fp(c.p)}` : '·';
+  $('callTxt').className = seen ? '' : 'idle';
+  $('pfill').style.width = seen ? (c.p * 100).toFixed(1) + '%' : '0%';
+  $('truth').textContent = lv >= 2 ? word(c.y) : '·';
+  $('mark').innerHTML = lv >= 3 ? `<span class="mchip">${c.call === c.y ? 'right' : 'wrong'}</span> so y = ${c.y}` : '<span class="idle">·</span>';
+  const asking = s && s.ask && lv === 2;
+  $('fbRow').hidden = !(s && (s.ask || lv >= 3)) || w.level === 'none';
+  for (const b of [$('bRight'), $('bWrong')]) { b.disabled = !asking; b.classList.toggle('pulse', !!asking); }
+  $('freeRow').hidden = pos < YOUR_TURN;
+  $('bNext').disabled = w.n >= N; $('bAll').disabled = w.n >= N;
+  $('bAll').textContent = w.n >= N ? 'All 569 taught' : `Run the rest (${N - (w.n || 0)})`;
+  $('caseTag').textContent = w.n === null ? 'example' : pos >= YOUR_TURN ? 'you are teaching' : 'guided';
+}
+
+// ---- Curve panel: the cases by radius, the model's line or S, and the knobs.
+function drawCurve(w, wb) {
+  const svg = $('curve'); svg.textContent = '';
+  $('wCurve').hidden = !w.panels.includes('curve');
+  if ($('wCurve').hidden) return;
+  const Wd = Math.max(260, Math.round(svg.getBoundingClientRect().width) || 300), H = 190;
+  svg.setAttribute('viewBox', `0 0 ${Wd} ${H}`);
+  const L = 30, R = Wd - 10, T = w.curve.sd ? 28 : 10, Bt = H - 34;
+  const cx = r => L + (r - 6) / 24 * (R - L), cy = p => Bt - p * (Bt - T);
+  for (const p of [0, 0.5, 1]) el('line', { x1: L, x2: R, y1: cy(p), y2: cy(p), class: p === 0.5 ? 'grid' : 'ax' }, svg);
+  for (const p of [0, 0.5, 1]) el('text', { x: L - 6, y: cy(p) + 4, 'text-anchor': 'end', class: 'tick' }, svg).textContent = w.curve.mode === 'line' ? ['−4', '0', '+4'][p * 2] : p;
+  for (const r of [10, 15, 20, 25]) el('text', { x: cx(r), y: Bt + 14, 'text-anchor': 'middle', class: 'tick' }, svg).textContent = r;
+  el('text', { x: R, y: Bt + 28, 'text-anchor': 'end', class: 'cap' }, svg).textContent = 'radius';
+  if (w.curve.sd) for (let s = -2; s <= 4; s++) { const r = MU + s * SD; if (r < 6 || r > 30) continue; el('line', { x1: cx(r), x2: cx(r), y1: T - 8, y2: T - 4, class: 'ax' }, svg); el('text', { x: cx(r), y: T - 12, 'text-anchor': 'middle', class: 'tick' }, svg).textContent = (s > 0 ? '+' : '') + M(String(s)); }
+  if (w.curve.dots) { const g = el('g', { fill: 'var(--ink-3)', 'fill-opacity': 0.35, 'data-ref': 'dots' }, svg); for (let i = 0; i < N; i++) el('circle', { cx: cx(DATA.r[i]).toFixed(1), cy: cy(Yv[i] ? 0.96 + jit(i) * 0.06 : 0.04 + jit(i) * 0.06).toFixed(1), r: 1.8 }, g); }
+  $('curveTag').textContent = w.curve.mode === 'line' ? 'score by radius' : w.curve.mode === 'S' ? 'p(malignant) by radius' : 'radius';
+  const [mw, mb] = wb || modelWB(w);
+  if (w.curve.mode !== 'none') {
+    let d = '';
+    for (let r = 6; r <= 30.001; r += 0.25) { const z = mw * (r - MU) / SD + mb, v = w.curve.mode === 'line' ? 0.5 + z / 8 : sig(z); d += (d ? 'L' : 'M') + cx(r).toFixed(1) + ' ' + cy(v).toFixed(1); }
+    const clip = el('clipPath', { id: 'cclip' }, el('defs', {}, svg)); el('rect', { x: L, y: T - 2, width: R - L, height: Bt - T + 4 }, clip);
+    el('path', { d, fill: 'none', stroke: 'var(--copper)', 'stroke-width': 2.25, 'data-ref': 'curve', 'clip-path': 'url(#cclip)' }, svg);
+    const fr = flipOf(mw, mb);
+    if (w.curve.mode === 'S' && fr >= 6 && fr <= 30) {
+      const g = el('g', { 'data-ref': 'flip' }, svg);
+      el('line', { x1: cx(fr), x2: cx(fr), y1: cy(0.5), y2: Bt, stroke: 'var(--copper)', 'stroke-dasharray': '2 3' }, g);
+      el('circle', { cx: cx(fr), cy: cy(0.5), r: 3.5, fill: 'var(--sheet)', stroke: 'var(--copper)', 'stroke-width': 1.5 }, g);
+      el('text', { x: cx(fr) + 6, y: cy(0.5) + 16, class: 'tick', style: 'fill:var(--copper)' }, g).textContent = 'flips at ' + f(fr);
+    }
+  }
+  if (LEVELS[w.level] >= 1 && w.curve.mode !== 'none') {
+    const c = caseView(w);
+    el('line', { x1: cx(c.x), x2: cx(c.x), y1: T, y2: Bt, stroke: 'var(--copper-line)', 'data-ref': 'x' }, svg);
+    if (w.curve.mode === 'S' && LEVELS[w.level] >= 2) {
+      const before = w.level === 'upd';
+      el('circle', { cx: cx(c.x), cy: cy(c.p), r: 4.5, fill: before ? 'var(--sheet)' : 'var(--copper)', stroke: 'var(--copper)', 'stroke-width': 1.5, 'data-ref': 'p' }, svg);
+      if (before) el('text', { x: cx(c.x) + 7, y: cy(c.p) + 4, class: 'tick halo' }, svg).textContent = 'p before the step';
+    }
+  }
+  // knobs
+  $('knobBox').hidden = !w.curve.knobs;
+  const handsOn = w.n === null;
+  $('kw').disabled = $('kb').disabled = !handsOn;
+  $('kw').value = mw; $('kb').value = mb; $('kwv').textContent = f(mw); $('kbv').textContent = f(mb);
+  $('knobNote').textContent = !handsOn ? 'The model turns the knobs now, one footstep per case.' : w.curve.mode === 'S' ? 'Drag the knobs. Fit the S to the dots.' : 'Drag the knobs: w tilts the line, b slides it.';
+  const st = stat(mw, mb);
+  $('gAcc').textContent = pct(st.acc); $('gJ').textContent = st.J.toFixed(3);
+  $('gJl').textContent = w.grade ? 'surprise J (lower is better)' : 'surprise J (explained soon)';
+  $('gJbox').classList.toggle('soon', !w.grade);
+}
+
+// ---- Map: the grade J over a grid of (w, b), drawn as contour bands.
+const LEVELSJ = [0.29, 0.295, 0.305, 0.32, 0.35, 0.4, 0.47, 0.56, 0.69, 0.85, 1.05, 1.35, 1.8, 2.5, 3.5, 5];
+const fieldCache = new Map();
+function field(bd, nx, ny) {
+  const key = bd.join() + nx + 'x' + ny; if (fieldCache.has(key)) return fieldCache.get(key);
+  const F = new Float32Array(nx * ny);
+  for (let j = 0; j < ny; j++) for (let i = 0; i < nx; i++) F[j * nx + i] = Jof(bd[0] + (bd[1] - bd[0]) * i / (nx - 1), bd[3] - (bd[3] - bd[2]) * j / (ny - 1));
+  fieldCache.set(key, F); return F;
+}
+const band = v => { let k = 0; while (k < LEVELSJ.length && v > LEVELSJ[k]) k++; return k; };
+function paintField(cv, bd) {
+  let ctx = null; try { ctx = cv.getContext && cv.getContext('2d'); } catch (e) {}
+  if (!ctx) return;
+  const w = cv.width, h = cv.height, nx = 90, ny = 64, F = field(bd, nx, ny), img = ctx.createImageData(w, h);
+  const B = new Uint8Array(w * h);
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const gx = x / (w - 1) * (nx - 1), gy = y / (h - 1) * (ny - 1), i0 = Math.floor(gx), j0 = Math.floor(gy), i1 = Math.min(nx - 1, i0 + 1), j1 = Math.min(ny - 1, j0 + 1), tx = gx - i0, ty = gy - j0;
+    const v = (F[j0 * nx + i0] * (1 - tx) + F[j0 * nx + i1] * tx) * (1 - ty) + (F[j1 * nx + i0] * (1 - tx) + F[j1 * nx + i1] * tx) * ty;
+    B[y * w + x] = band(v);
+  }
+  for (let y = 0; y < h; y++) for (let x = 0; x < w; x++) {
+    const k = B[y * w + x], line = (x + 1 < w && B[y * w + x + 1] !== k) || (y + 1 < h && B[(y + 1) * w + x] !== k);
+    const t = k / LEVELSJ.length, o = (y * w + x) * 4;
+    // valley light, high ground darker sand; contour lines a step darker
+    let r = 252 - 52 * t, g = 248 - 62 * t, b2 = 240 - 78 * t;
+    if (line) { r -= 34; g -= 36; b2 -= 36; }
+    img.data[o] = r; img.data[o + 1] = g; img.data[o + 2] = b2; img.data[o + 3] = 255;
+  }
+  ctx.putImageData(img, 0, 0);
+}
+// Draw a map into a .mapbox host. opts: bounds, paths [{pts, n, color, ref}], hiker, you, bottom, start, fog, arrow, items (stage items).
+function drawMap(host, opts) {
+  const bd = opts.bounds;
+  const Wd = Math.max(240, Math.round(host.getBoundingClientRect().width) || 320), H = Math.round(Wd * (opts.aspect || 0.72));
+  host.style.height = H + 'px';
+  let cv = host.querySelector('canvas'), svg = host.querySelector('svg');
+  if (!cv) { cv = document.createElement('canvas'); host.appendChild(cv); }
+  if (!svg) { svg = el('svg', {}); host.appendChild(svg); }
+  const key = bd.join() + Wd + 'x' + H;
+  if (cv.dataset.key !== key) { cv.width = Wd; cv.height = H; cv.dataset.key = key; paintField(cv, bd); }
+  svg.setAttribute('viewBox', `0 0 ${Wd} ${H}`); svg.textContent = '';
+  const mx = w => (w - bd[0]) / (bd[1] - bd[0]) * Wd, my = b => (bd[3] - b) / (bd[3] - bd[2]) * H;
+  const inside = (w, b) => w >= bd[0] && w <= bd[1] && b >= bd[2] && b <= bd[3];
+  el('text', { x: Wd - 6, y: H - 6, 'text-anchor': 'end', class: 'tick halo' }, svg).textContent = 'w (sensitivity) →';
+  el('text', { x: 6, y: 15, class: 'tick halo' }, svg).textContent = '↑ b (baseline)';
+  el('line', { x1: mx(0), x2: mx(0), y1: 0, y2: H, stroke: 'var(--rule-strong)', 'stroke-dasharray': '2 4' }, svg);
+  el('line', { x1: 0, x2: Wd, y1: my(0), y2: my(0), stroke: 'var(--rule-strong)', 'stroke-dasharray': '2 4' }, svg);
+  const g = (attrs) => el('g', attrs, svg);
+  if (opts.bottom) { const b = g({ 'data-ref': 'bottom', class: opts.items ? 'item' : '', 'data-item': opts.items ? 'bottom' : undefined }); el('path', { d: `M${mx(BEST.w)} ${my(BEST.b) - 7}l2 5h5l-4 3 2 6-5-4-5 4 2-6-4-3h5z`, fill: 'var(--green)' }, b); el('text', { x: mx(BEST.w) + 9, y: my(BEST.b) + 14, class: 'tick halo', style: 'fill:var(--green)' }, b).textContent = 'bottom'; }
+  if (opts.start) { el('circle', { cx: mx(0), cy: my(0), r: 3, fill: 'var(--ink-3)' }, svg); el('text', { x: mx(0) - 6, y: my(0) - 7, 'text-anchor': 'end', class: 'tick halo' }, svg).textContent = 'start'; }
+  const hf = handFit();
+  if (opts.you && hf && inside(hf.w, hf.b)) { const y = g({ 'data-ref': 'you', class: opts.items ? 'item' : '', 'data-item': opts.items ? 'you' : undefined }); el('circle', { cx: mx(hf.w), cy: my(hf.b), r: 6, fill: 'none', stroke: 'var(--indigo)', 'stroke-width': 2 }, y); const near = Math.hypot(mx(hf.w) - mx(0), my(hf.b) - my(0)) < 40; el('text', { x: mx(hf.w) + 9, y: my(hf.b) + (near ? 18 : -6), class: 'tick halo', style: 'fill:var(--indigo)' }, y).textContent = 'your fit'; }
+  for (const p of opts.paths || []) {
+    const n = Math.min(p.n, p.pts.length - 1); if (n <= 0) continue;
+    let d = ''; for (let k = 0; k <= n; k++) { const [w, b] = p.pts[k]; d += (d ? 'L' : 'M') + mx(Math.max(bd[0] - 1, Math.min(bd[1] + 1, w))).toFixed(1) + ' ' + my(Math.max(bd[2] - 1, Math.min(bd[3] + 1, b))).toFixed(1); }
+    el('path', { d, fill: 'none', stroke: p.color || 'var(--copper)', 'stroke-width': p.width || 1.6, 'stroke-linejoin': 'round', 'data-ref': p.ref || 'step', 'stroke-opacity': p.opacity ?? 0.9 }, svg);
+    if (n <= 60 && !p.opacity) for (let k = 1; k <= n; k++) el('circle', { cx: mx(p.pts[k][0]), cy: my(p.pts[k][1]), r: 1.8, fill: p.color || 'var(--copper)' }, svg);
+  }
+  if (opts.hiker) {
+    const [w, b] = opts.hiker, hx = mx(w), hy = my(b);
+    if (opts.fog) {
+      const defs = el('defs', {}, svg), mask = el('mask', { id: 'fogm' + opts.id }, defs);
+      el('rect', { x: 0, y: 0, width: Wd, height: H, fill: 'white' }, mask);
+      const rg = el('radialGradient', { id: 'fogg' + opts.id }, defs); el('stop', { offset: '0.55', 'stop-color': 'black' }, rg); el('stop', { offset: '1', 'stop-color': 'white' }, rg);
+      el('circle', { cx: hx, cy: hy, r: 46, fill: `url(#fogg${opts.id})` }, mask);
+      el('rect', { x: 0, y: 0, width: Wd, height: H, fill: '#efe9de', 'fill-opacity': 0.94, mask: `url(#fogm${opts.id})`, class: opts.items ? 'item' : '', 'data-item': opts.items ? 'fogveil' : undefined }, svg);
+    }
+    if (opts.arrow) {
+      const e = 1e-3, gw = (Jof(w + e, b) - Jof(w - e, b)) / (2 * e), gb = (Jof(w, b + e) - Jof(w, b - e)) / (2 * e);
+      const dx = -gw / (bd[1] - bd[0]) * Wd, dy = gb / (bd[3] - bd[2]) * H, len = Math.hypot(dx, dy) || 1, L = 38;
+      const a = g({ 'data-ref': 'arrow', class: opts.items ? 'item' : '', 'data-item': opts.items ? 'arrow' : undefined });
+      const ex = hx + dx / len * L, ey = hy + dy / len * L;
+      el('line', { x1: hx, y1: hy, x2: ex, y2: ey, stroke: 'var(--copper)', 'stroke-width': 2.5 }, a);
+      const ang = Math.atan2(ey - hy, ex - hx);
+      el('path', { d: `M${ex} ${ey}L${ex - 8 * Math.cos(ang - 0.45)} ${ey - 8 * Math.sin(ang - 0.45)}L${ex - 8 * Math.cos(ang + 0.45)} ${ey - 8 * Math.sin(ang + 0.45)}z`, fill: 'var(--copper)' }, a);
+      el('text', { x: ex + 6, y: ey + 4, class: 'tick', style: 'fill:var(--copper)' }, a).textContent = 'downhill';
+    }
+    const hk = g({ 'data-ref': 'step map', 'data-hiker': '1' });
+    el('circle', { cx: hx, cy: hy, r: 6, fill: 'var(--copper)', stroke: 'var(--sheet)', 'stroke-width': 2 }, hk);
+  }
+  return svg;
+}
+const PANEL_BD = [-1, 6, -3, 2];
+function drawMapPanel(w, nShow) {
+  const sl = $('stageLive'), nn = nShow ?? w.n;
+  if (sl && nn !== null) drawMap(sl, { id: 'l', bounds: PANEL_BD, aspect: 0.5, bottom: true, start: true, you: true, hiker: PATH[nn], paths: nn ? [{ pts: PATH, n: nn, width: 2 }] : [] });
+  $('wMap').hidden = !w.panels.includes('map');
+  if ($('wMap').hidden) return;
+  const n = nShow ?? w.n;
+  drawMap($('mapPanel'), { id: 'p', bounds: PANEL_BD, aspect: 0.72, bottom: w.map.bottom, you: w.map.you, start: true, hiker: w.map.hiker && n !== null ? PATH[n] : null, paths: n ? [{ pts: PATH, n }] : [] });
+  const [mw, mb] = n === null ? [knob.w, knob.b] : PATH[n], st = stat(mw, mb);
+  $('mJ').textContent = st.J.toFixed(3); $('mAcc').textContent = pct(st.acc); $('mFlip').textContent = isNaN(flipOf(mw, mb)) ? '·' : f(flipOf(mw, mb));
+  const cb = $('callback');
+  const hf = handFit();
+  cb.hidden = !(n >= 4);
+  if (!cb.hidden) cb.textContent = (hf ? `Your best hand-fit scored J = ${hf.J.toFixed(3)} (${pct(hf.acc)} right). ` : 'You left the knobs untouched. ') + `The footsteps ${n >= N ? 'reached' : 'now reach'} J = ${st.J.toFixed(3)} (${pct(st.acc)}).`;
+}
+
+// ---- Animation of the model between two footstep counts (curve, map and case follow).
+let anim = null;
+function animateN(w, from, to, dur) {
+  if (anim) cancelAnimationFrame(anim);
+  if (typeof requestAnimationFrame !== 'function' || from === to) { drawCurve(w); drawMapPanel(w); return; }
+  const t0 = performance.now();
+  const tick = now => {
+    const u = Math.min(1, (now - t0) / dur), e = 1 - Math.pow(1 - u, 3);
+    if (to - from === 1) { const a = PATH[from], b = PATH[to], wb = [a[0] + (b[0] - a[0]) * e, a[1] + (b[1] - a[1]) * e]; drawCurve(w, wb); drawMapPanel({ ...w, n: u < 1 ? from : to }, u < 1 ? from : to); }
+    else { const n = Math.round(from + (to - from) * e); drawCurve({ ...w, n }); drawMapPanel({ ...w, n }, n); }
+    anim = u < 1 ? requestAnimationFrame(tick) : null;
+  };
+  anim = requestAnimationFrame(tick);
+}
+function showWorld(w, prev) {
+  live = w;
+  renderChips(w); renderCase(w, steps[pos]);
+  const from = prev && prev.n !== null && w.n !== null ? prev.n : null;
+  if (from !== null && w.n > from) animateN(w, from, w.n, w.n - from === 1 ? 700 : Math.min(2600, 30 * (w.n - from)));
+  else { if (anim) { cancelAnimationFrame(anim); anim = null; } drawCurve(w); drawMapPanel(w); }
+}
+
+// ---- Stage scenes. Items appear on their {d:id} word; items a clip never names appear at once.
+let stageToken = 0;
+const stageEl = () => $('stage');
+function item(html, id, ref, cls = '') { return `<div class="item ${cls}" data-item="${id}"${ref ? ` data-ref="${ref}"` : ''}>${html}</div>`; }
+function loop(token, fn) { if (typeof requestAnimationFrame !== 'function') return; const t0 = performance.now(); const tick = now => { if (token !== stageToken) return; if (fn((now - t0) / 1000) !== false) requestAnimationFrame(tick); }; requestAnimationFrame(tick); }
+function dotsSVG(o = {}) {
+  const Wd = 520, H = o.h || 150, L = 20, R = Wd - 20, cx = r => L + (r - 6) / 24 * (R - L);
+  let s = `<svg viewBox="0 0 ${Wd} ${H}">`;
+  if (o.spread) {
+    const bins = new Array(43).fill(0); DATA.r.forEach(r => bins[Math.min(42, Math.floor((r - 6) / 0.56))]++);
+    const mx = Math.max(...bins); bins.forEach((v, i) => { const x = cx(6 + i * 0.56), h = v / mx * (H - 54); s += `<rect x="${x.toFixed(1)}" y="${(H - 30 - h).toFixed(1)}" width="${(cx(6.56) - cx(6) - 1).toFixed(1)}" height="${h.toFixed(1)}" fill="var(--ink-3)" fill-opacity="0.35"/>`; });
+    s += `<line x1="${cx(MU)}" x2="${cx(MU)}" y1="8" y2="${H - 30}" stroke="var(--ink)" stroke-dasharray="3 3"/><text x="${cx(MU) + 5}" y="18" class="tick">average 14.13</text>`;
+  } else {
+    for (let i = 0; i < N; i++) s += `<circle cx="${cx(DATA.r[i]).toFixed(1)}" cy="${(Yv[i] ? 34 + jit(i) * 30 : H - 52 + jit(i) * 30).toFixed(1)}" r="2.6" fill="${Yv[i] ? 'var(--plum)' : 'var(--indigo)'}" fill-opacity="0.45"/>`;
+    s += `<text x="${L}" y="14" class="tick" style="fill:var(--plum)">malignant (212)</text><text x="${R}" y="${H - 70}" text-anchor="end" class="tick" style="fill:var(--indigo)">benign (357)</text>`;
+  }
+  s += `<line x1="${L}" x2="${R}" y1="${H - 30}" y2="${H - 30}" class="ax"/>`;
+  for (const r of [10, 15, 20, 25]) s += `<text x="${cx(r)}" y="${H - 14}" text-anchor="middle" class="tick">${r}</text>`;
+  if (o.ruler) {
+    s += `<g class="item" data-item="ruler" data-ref="ruler">`;
+    for (let k = -2; k <= 4; k++) { const r = MU + k * SD; if (r < 6 || r > 30) continue; s += `<line x1="${cx(r)}" x2="${cx(r)}" y1="${H - 30}" y2="${H - 40}" stroke="var(--copper)" stroke-width="2"/><text x="${cx(r)}" y="${H - 44}" text-anchor="middle" class="tick" style="fill:var(--copper)">${k > 0 ? '+' : ''}${M(String(k))}</text>`; }
+    s += `<line x1="${cx(MU)}" x2="${cx(MU + SD)}" y1="${H - 35}" y2="${H - 35}" stroke="var(--copper)" stroke-width="3"/></g>`;
+    s += `<g class="item" data-item="pin" data-ref="xt"><line x1="${cx(17.85)}" x2="${cx(17.85)}" y1="22" y2="${H - 58}" stroke="var(--plum)" stroke-width="2"/><circle cx="${cx(17.85)}" cy="${H - 30}" r="4" fill="var(--plum)"/><text x="${cx(17.85) + 6}" y="34" class="tick" style="fill:var(--plum)">this biopsy: x̃ = +1.06</text></g>`;
+  }
+  return s + '</svg>';
+}
+function plotSVG(fn, o) {
+  const Wd = 520, H = o.h || 170, L = 40, R = Wd - 14, T = 12, Bt = H - 28;
+  const cx = v => L + (v - o.x0) / (o.x1 - o.x0) * (R - L), cy = v => Bt - (v - o.y0) / (o.y1 - o.y0) * (Bt - T);
+  let d = ''; for (let i = 0; i <= 300; i++) { const v = o.x0 + (o.x1 - o.x0) * i / 300; d += (d ? 'L' : 'M') + cx(v).toFixed(1) + ' ' + cy(fn(v)).toFixed(1); }
+  let s = `<svg viewBox="0 0 ${Wd} ${H}"><line x1="${L}" x2="${R}" y1="${Bt}" y2="${Bt}" class="ax"/><line x1="${L}" x2="${L}" y1="${T}" y2="${Bt}" class="ax"/>`;
+  (o.yt || []).forEach(v => { s += `<text x="${L - 6}" y="${cy(v) + 4}" text-anchor="end" class="tick">${o.yf ? o.yf(v) : v}</text>`; });
+  (o.xt || []).forEach(v => { s += `<text x="${cx(v)}" y="${Bt + 16}" text-anchor="middle" class="tick">${M(String(v))}</text>`; });
+  s += `<text x="${R}" y="${T + 8}" text-anchor="end" class="cap">${o.label}</text><path d="${d}" fill="none" stroke="${o.color || 'var(--copper)'}" stroke-width="2.5" ${o.step ? '' : 'stroke-linejoin="round"'}/>`;
+  return s + (o.extra ? o.extra(cx, cy) : '') + '</svg>';
+}
+const SCENES = {
+  question: () => item(`<div class="s-card" data-ref="x"><span class="label">An example biopsy</span><div class="s-big" data-dockfrom="x">17.85</div><span class="s-note">mean radius of the cell nuclei <button class="help" data-detour="radius" aria-label="What is mean radius?">?</button></span></div>`, 'card') +
+    item('<p class="s-title">Malignant or benign?</p>', 'q') + item(dotsSVG(), 'dots', 'dots'),
+  ruler: () => item(dotsSVG({ spread: true, ruler: true, h: 190 }), 'spread') +
+    item(`<div class="s-tex" data-dockfrom="xt"></div><p class="s-note">x̃ counts typical distances (sd<button class="help" data-detour="sd" aria-label="What is sd?">?</button> = 3.52) from the average · <button class="tbtn" data-detour="rescale">why rescale?</button></p>`, 'xtf'),
+  knobs: () => item(`<div class="s-tex" data-tex="z = \\htmlClass{r-w}{w}\\cdot\\tilde x + \\htmlClass{r-b}{b}"></div><div id="miniLine"></div><p class="s-note">demo: score z against x̃ as w turns, then b</p>`, 'zf') +
+    `<div class="s-row" data-dockfrom="knobs">` + item(dialHTML('w', 'sensitivity'), 'kw', 'w') + item(dialHTML('b', 'baseline lean'), 'kb', 'b') + `</div>`,
+  dimmer: () => item(`<div class="s-row" style="align-items:center"><svg viewBox="0 0 300 80" style="max-width:300px"><line x1="10" x2="290" y1="40" y2="40" class="ax"/><text x="10" y="70" class="tick">−6</text><text x="150" y="70" text-anchor="middle" class="tick">0</text><text x="290" y="70" text-anchor="end" class="tick">+6</text><text x="10" y="18" class="cap">score z</text><circle id="zDot" cx="150" cy="40" r="7" fill="var(--copper)"/></svg>
+    <div data-ref="bulb" style="text-align:center;padding:4px 8px"><svg viewBox="0 0 80 90" style="width:80px"><circle id="bulb" cx="40" cy="38" r="28" fill="var(--copper)" fill-opacity="0.5" stroke="var(--ink-3)"/><rect x="30" y="68" width="20" height="14" rx="3" fill="var(--rule-strong)"/></svg><div class="s-note" id="bulbV">p = 0.50</div></div></div>`, 'dimmer') +
+    item(`<div class="s-tex" data-dockfrom="p" data-tex="\\htmlClass{r-p}{p} = \\sigma(z) = \\dfrac{1}{1 + e^{-z}}"></div><p class="s-note">the sigmoid <button class="help" data-detour="e" aria-label="What is e?">?</button></p>`, 'sig'),
+  count: () => item(`<p class="s-note"><b>% right</b> as you turn w (b held at −0.64)</p>` + plotSVG(w => accOf(w, BEST.b) * 100, { x0: 0, x1: 6, y0: 55, y1: 92, xt: [0, 2, 4, 6], yt: [60, 70, 80, 90], yf: v => v + '%', label: 'w', step: true }), 'stairs', 'stairs') +
+    item(`<div class="s-row"><div class="s-card"><span class="label">near miss</span><div class="s-big" style="font-size:28px">p = 0.51</div><span class="s-note">wrong: 1 mistake</span></div><div class="s-card"><span class="label">wild miss</span><div class="s-big" style="font-size:28px">p = 0.99</div><span class="s-note">wrong: 1 mistake</span></div></div>`, 'same', 'same'),
+  surprise: () => item(`<p class="s-note">The truth is benign. The model gave benign this probability:</p><div class="meter">${[['m1', 0.99], ['m2', 0.5], ['m3', 0.08]].map(([id, q]) => `<div><span data-ref="${id}">${q}</span><i style="transform:scaleX(${(-Math.log(q) / 2.6).toFixed(3)})"></i><b data-ref="${id}">${(-Math.log(q)).toFixed(2)}</b></div>`).join('')}</div><p class="s-note">surprise</p>`, 'meter') +
+    item(`<div class="s-tex" data-dockfrom="J" data-tex="\\begin{aligned}\\htmlClass{r-L}{L} &= -\\ln(\\text{prob. given to the truth})\\\\ \\htmlClass{r-loss}{J} &= \\text{average of } L \\text{ over all 569}\\end{aligned}"></div><p class="s-note"><button class="help" data-detour="ln" aria-label="What is ln?">?</button></p>`, 'Lf') +
+    item(plotSVG(w => Jof(w, BEST.b), { x0: 0, x1: 6, y0: 0.25, y1: 0.75, xt: [0, 2, 4, 6], yt: [0.3, 0.5, 0.7], label: 'J as you turn w: smooth, with a bottom', h: 150 }), 'bowl', 'loss'),
+  land: () => `<div class="mapbox item" data-item="map" data-ref="map" data-dockfrom="map" id="stageMap"></div><p class="s-note item" data-item="mapnote">Each point is one setting of (w, b). Its shade is its grade J: lighter is lower.</p>`,
+  fog: () => `<div class="mapbox item" data-item="fog" id="stageMap"></div>` + item('<p class="s-note">One case gives a rough slope, fast. All 569 give the true slope, slowly.</p>', 'one'),
+  ask: () => { const c = caseView(live); return item(`<div class="s-card"><span class="label">Biopsy ${c.k + 1}${live.n !== null ? '' : ''}</span><div class="s-big" data-ref="x">${f(c.x)}</div><div class="s-note" data-ref="p call">model: <b>${word(c.call)}</b>, p = ${fp(c.p)}</div><div class="s-note" data-ref="truth">pathology: <b>${word(c.y)}</b></div></div>`, 'askcard') + item('<p class="s-note">Mark the call in the Case panel (→ marks it for you).</p>', 'askhint'); },
+  rule: () => item(`<div class="s-tex" data-tex="\\begin{aligned} w &\\leftarrow w + \\htmlClass{r-eta}{\\eta}\\cdot\\htmlClass{r-err}{(y-p)}\\cdot\\htmlClass{r-xt}{\\tilde x}\\\\ b &\\leftarrow b + \\htmlClass{r-eta}{\\eta}\\cdot\\htmlClass{r-err}{(y-p)}\\end{aligned}"></div>`, 'rule') +
+    `<div class="factors">` + item('<b>y − p = −0.50</b>which way, how far', 'f1', 'err', 'factor') + item('<b>x̃ = −1.16</b>blame', 'f2', 'xt', 'factor') + item('<b>η = 0.5</b>how bold (step size)', 'f3', 'eta', 'factor') + `</div>` +
+    item(`<div class="s-card" style="padding:8px 14px"><span class="label">what if: biopsy #326, radius 14.11</span><span class="s-note">x̃ = −0.005, so Δw = +0.001: w barely moves; only b would.</span></div>`, 'ghost', 'ghost') +
+    item(`<div class="s-tex" data-dockfrom="dw" data-tex="\\Delta w = 0.5\\cdot(-0.5)\\cdot(-1.16) = +0.29 \\qquad \\Delta b = 0.5\\cdot(-0.5) = -0.25"></div>`, 'nums'),
+  step: () => { const c = CASES[live.caseK]; const len = Math.hypot(c.dw, c.db); return `<div class="mapbox" id="stageLive" data-ref="map"></div>` + item(`<div class="s-card" style="padding:8px 16px" data-ref="step"><span class="label">footstep ${c.k + 1} · radius ${f(c.x)}, ${word(c.y)}</span><div class="s-tex" data-tex="\\Delta w = ${f(c.dw, 3).replace('−', '-')}\\qquad \\Delta b = ${f(c.db, 3).replace('−', '-')}"></div><span class="s-note">error y − p = ${fs(c.err)} · stride ${f(len, 3)}</span></div>`, 'stepbox'); },
+  fast: () => item(`<p class="s-title">40 more biopsies</p><p class="s-note">same loop each time: call, mark, one footstep</p>`, 'fasttitle') + `<div class="mapbox" id="stageLive" data-ref="map"></div>`,
+  pair: () => { const a = CASES[44], b = CASES[45], la = Math.hypot(a.dw, a.db), lb = Math.hypot(b.dw, b.db); return item(`<div class="meter" data-ref="pair"><div><span>biopsy 45 (radius 28.11): sure and right</span><i style="transform:scaleX(${Math.max(0.004, la / lb).toFixed(3)})"></i><b>${f(la, 4)}</b></div><div><span>biopsy 46 (radius 17.85): sure and wrong</span><i style="transform:scaleX(1)"></i><b>${f(lb)}</b></div></div><p class="s-note">stride length of each footstep</p>`, 'pair', 'pair'); },
+  three: () => `<div class="mapbox item" data-item="three" id="stageMap"></div><div class="legend3 item" data-item="legend">${[['h1', 0.05, 'var(--indigo)', 'step size 0.05: creeps'], ['h2', 0.5, 'var(--copper)', '0.5: arrives'], ['h3', 5, 'var(--plum)', '5: overshoots']].map(([r, e, c, t]) => `<button type="button" data-ref="${r}" data-eta="${e}" style="color:${c}"><i></i>${t}</button>`).join('')}</div>`,
+  done: () => item(`<div class="s-card"><span class="label">after all 569 footsteps</span><div class="s-big" data-ref="flip">flips at ${f(flipOf(...PATH[N]))}</div><div class="s-note" data-ref="acc">${pct(stat(...PATH[N]).acc)} right · J = ${stat(...PATH[N]).J.toFixed(3)}</div><div class="s-note">full-batch bottom: flips at ${f(flipOf(BEST.w, BEST.b))}, ${pct(stat(BEST.w, BEST.b).acc)}, J = ${stat(BEST.w, BEST.b).J.toFixed(3)}</div>${handFit() ? `<div class="s-note">your best hand-fit: J = ${handFit().J.toFixed(3)}, ${pct(handFit().acc)}</div>` : ''}</div>`, 'final'),
+};
+function dialHTML(id, gloss) { return `<div class="dial"><svg viewBox="0 0 74 74"><circle cx="37" cy="37" r="30" fill="var(--sheet)" stroke="var(--rule-strong)" stroke-width="2"/><line id="needle-${id}" x1="37" y1="37" x2="37" y2="12" stroke="var(--copper)" stroke-width="3" stroke-linecap="round"/></svg><b>${id} = <span id="dv-${id}">0</span></b><span>${gloss}</span></div>`; }
+
+function buildStage(s) {
+  stageToken++;
+  const st = stageEl(); st.innerHTML = SCENES[s.stage] ? SCENES[s.stage]() : '';
+  st.querySelectorAll('[data-tex]').forEach(e => texInto(e, e.dataset.tex));
+  const xtf = st.querySelector('[data-dockfrom="xt"]'); if (xtf) texInto(xtf, '\\htmlClass{r-xt}{\\tilde x} = \\dfrac{x - \\text{average}}{\\text{sd}} = \\dfrac{17.85 - 14.13}{3.52} = +1.06');
+  const named = new Set(s.clip ? (VOICE[s.clip].D || []).map(d => d[1]) : []);
+  st.querySelectorAll('[data-item]').forEach(e => { if (!named.has(e.dataset.item)) e.classList.add('on'); });
+  if (s.stage === 'land' || s.stage === 'fog' || s.stage === 'three') stageMap(s, s.stage === 'three' ? 0 : undefined);
+  if (s.stage === 'knobs') miniLine(0, 0);
+  if ($('stageLive')) drawMapPanel(live);
+  if (s.stage === 'dimmer') dimmerLoop();
+}
+function stageMap(s, nRace) {
+  const host = $('stageMap'); if (!host) return;
+  if (s.stage === 'three') {
+    const n = nRace ?? N;
+    drawMap(host, { id: 's3', bounds: [-1, 11, -7, 7], aspect: 0.6, bottom: true, start: true, paths: [{ pts: PATHS[5], n, color: 'var(--plum)', ref: 'h3', width: 1, opacity: 0.45 }, { pts: PATHS[0.05], n, color: 'var(--indigo)', ref: 'h1', width: 2.5 }, { pts: PATHS[0.5], n, color: 'var(--copper)', ref: 'h2', width: 2.5 }] });
+  } else drawMap(host, { id: 's', bounds: PANEL_BD, aspect: 0.62, items: true, bottom: true, start: true, you: s.stage === 'land', hiker: s.stage === 'fog' ? [0, 0] : null, fog: s.stage === 'fog', arrow: s.stage === 'fog' });
+  const named = new Set((VOICE[s.clip].D || []).map(d => d[1]));
+  host.querySelectorAll('svg [data-item]').forEach(e => { if (!named.has(e.dataset.item) || drawn.has(e.dataset.item)) e.classList.add('on'); });
+}
+function miniLine(w, b) {
+  const box = $('miniLine'); if (!box) return;
+  box.innerHTML = plotSVG(x => w * x + b, { x0: -2.5, x1: 4.5, y0: -5, y1: 5, xt: [-2, 0, 2, 4], yt: [-4, 0, 4], label: '', h: 120 });
+  for (const [id, v, k] of [['w', w, 25], ['b', b, 40]]) { const n = $('needle-' + id); if (n) { const a = Math.max(-2.4, Math.min(2.4, v / k * 10)); n.setAttribute('x2', 37 + 25 * Math.sin(a)); n.setAttribute('y2', 37 - 25 * Math.cos(a)); } const dv = $('dv-' + id); if (dv) dv.textContent = Math.abs(v) < 0.05 ? '0' : f(v, 1); }
+}
+function dimmerLoop() {
+  loop(stageToken, t => { const z = 6 * Math.sin(t * 0.9), p = sig(z); const d = $('zDot'), b = $('bulb'), v = $('bulbV'); if (!d) return false; d.setAttribute('cx', 150 + z / 6 * 140); b.setAttribute('fill-opacity', (0.08 + 0.92 * p).toFixed(3)); v.textContent = `z = ${f(z, 1)} → p = ${p.toFixed(2)}`; });
+}
+// Draws with behavior: the knob demo turns w then b; the step-size race runs the three hikers.
+const drawn = new Set();
+function onDraw(id) {
+  drawn.add(id);
+  stageEl().querySelectorAll(`[data-item="${id}"]`).forEach(e => e.classList.add('on'));
+  const tok = stageToken;
+  if (id === 'kw') loop(tok, t => { const u = Math.min(1, t / 2.2); miniLine(2.5 * Math.sin(u * Math.PI) + u, 0); return u < 1; });
+  if (id === 'kb') loop(tok, t => { const u = Math.min(1, t / 2.2); miniLine(1, 1.6 * Math.sin(u * Math.PI * 2)); return u < 1; });
+  if (id === 'three') raceThree(tok);
+}
+function raceThree(tok) { loop(tok, t => { const n = Math.min(N, Math.round(t / 6 * N)); stageMap(steps[pos], n); return n < N; }); }
+
+// ---- Docking: the stage term flies to its home and lands there.
+const HOME = { x: '#caseR', dots: '#curve', xt: '[data-chip="xt"]', knobs: '#knobBox', p: '[data-chip="p"]', J: '#gJbox', map: '#mapPanel', hiker: '#mapPanel [data-hiker]', dw: '[data-chip="dw"]' };
+function onDock(id, apply) {
+  const st = stageEl(), src = st.querySelector(`[data-dockfrom="${id}"]`) || st.querySelector(`[data-item="${id}"]`);
+  apply();
+  const home = document.querySelector(HOME[id]);
+  if (!src || !home || typeof src.getBoundingClientRect !== 'function') return;
+  const a = src.getBoundingClientRect(), b = home.getBoundingClientRect();
+  const vis = r => r.width > 0 && r.bottom > 0 && r.top < window.innerHeight;
+  const homeWin = home.closest('.win') || home.closest('.monitor');
+  if (!vis(a) || !vis(b) || (window.matchMedia && matchMedia('(prefers-reduced-motion: reduce)').matches)) { if (homeWin) pulse(homeWin); return; }
+  const fly = src.cloneNode(true); fly.classList.add('flyer'); fly.classList.remove('item');
+  fly.style.left = a.left + 'px'; fly.style.top = a.top + 'px'; fly.style.width = a.width + 'px'; fly.style.height = a.height + 'px';
+  const srcCanvas = src.querySelector('canvas'), flyCanvas = fly.querySelector('canvas');
+  if (srcCanvas && flyCanvas) { flyCanvas.width = srcCanvas.width; flyCanvas.height = srcCanvas.height; try { flyCanvas.getContext('2d').drawImage(srcCanvas, 0, 0); } catch (e) {} }
+  document.body.appendChild(fly);
+  src.style.opacity = '0.35';
+  home.style.opacity = '0';
+  requestAnimationFrame(() => requestAnimationFrame(() => { fly.style.transform = `translate(${b.left - a.left}px, ${b.top - a.top}px) scale(${Math.max(0.05, b.width / a.width)}, ${Math.max(0.05, b.height / a.height)})`; fly.style.opacity = '0.6'; }));
+  setTimeout(() => { fly.remove(); home.style.opacity = ''; if (homeWin) pulse(homeWin); }, 720);
+}
+function pulse(e) { e.classList.remove('landing'); void e.offsetWidth; e.classList.add('landing'); }
+
+// ---- Detours: optional caption cards, no voice.
+const DETOURS = {
+  radius: ['Mean radius', 'A microscope image of a fine-needle biopsy is traced nucleus by nucleus. For each nucleus, the radius is the average distance from its center to its edge. The dataset records the mean over the nuclei in the image.'],
+  sd: ['A typical distance from the average', 'Take every radius, measure how far it sits from the average, and form a typical size of those distances: that is the standard deviation, here 3.52. About 70% of the 569 radii (399) lie within one of them. Saying "two typical steps above average" means the same thing in inches or centimeters, which is why it makes a common ruler.'],
+  rescale: ['Why rescale?', 'With raw radii (7 to 28), the landscape you will see becomes a valley about 18,000 times longer than it is wide, instead of about 5.5 times. Footsteps then zigzag across the narrow valley instead of walking down it.'],
+  e: ['The number e', 'e is about 2.718. The part e^(−z) shrinks fast as z grows and explodes as z goes negative, so 1/(1 + e^(−z)) settles near 1 for big scores and near 0 for small ones. That is the dimmer.'],
+  ln: ['Natural log, ln', 'ln turns "how unlikely" into a count of surprise. Each time the probability given to the truth halves, the surprise goes up by the same amount, 0.69. A probability of 1 gives a surprise of 0.'],
+};
+document.addEventListener('click', e => {
+  const b = e.target.closest('[data-detour]'); if (!b) return;
+  const [h, t] = DETOURS[b.dataset.detour]; $('detourH').textContent = h; $('detourB').innerHTML = `<p>${t}</p>`; $('detour').hidden = false; $('detourX').focus();
+});
+$('detourX').addEventListener('click', () => { $('detour').hidden = true; });
+
+// ---- Sound. Nothing plays before the reader's first gesture. Mute and speed are remembered per browser.
+const store = { get(k) { try { return localStorage.getItem(k); } catch (e) { return null; } }, set(k, v) { try { localStorage.setItem(k, v); } catch (e) {} } };
+let muted = store.get('teach-muted') === '1', rate = store.get('teach-rate') === '1.25' ? 1.25 : 1, unlocked = false;
+const clipEls = {};
+function clipEl(id) { if (!clipEls[id] && typeof Audio === 'function') { const a = new Audio('audio/' + id + '.mp3'); a.preload = 'auto'; clipEls[id] = a; } return clipEls[id]; }
+const sound = () => unlocked && !muted && typeof Audio === 'function';
+
+// ---- Highlights: elements whose data-ref names the phrase being spoken get the highlight.
+const REFS = ['x', 'dots', 'ruler', 'xt', 'w', 'b', 'bulb', 'p', 'call', 'stairs', 'same', 'm1', 'm2', 'm3', 'L', 'loss', 'map', 'you', 'bottom', 'arrow', 'err', 'ghost', 'eta', 'step', 'truth', 'mark', 'pair', 'h1', 'h2', 'h3', 'flip', 'acc', 'next', 'rest'];
+(() => {
+  const css = REFS.map(r => `body[data-hl~="${r}"] [data-ref~="${r}"]:not(svg *){outline-color:var(--copper);background-color:var(--copper-wash);animation:hlpulse .7s ease-out}` +
+    `body[data-hl~="${r}"] svg [data-ref~="${r}"], body[data-hl~="${r}"] .katex [data-ref~="${r}"]{filter:drop-shadow(0 0 3px rgb(166 77 29 / 0.85))}` +
+    `body[data-hl~="${r}"] svg path[data-ref~="${r}"]{stroke-width:3.5px}` +
+    `body[data-hl~="${r}"] .katex [data-ref~="${r}"]{color:var(--copper)}` +
+    `body[data-hl~="${r}"] .legend3 [data-ref~="${r}"]{outline-color:currentColor}`).join('\n');
+  const st = document.createElement('style'); st.textContent = css; document.head.appendChild(st);
+})();
+let hlNow = '';
+const WINS = ['wCase', 'wCurve', 'wMap'];
+function setHL(refs) {
+  const key = refs.join(' '); if (key === hlNow) return;
+  const fresh = refs.filter(r => !hlNow.split(' ').includes(r));
+  hlNow = key; document.body.dataset.hl = key;
+  let focusWin = null;
+  for (const r of fresh) {
+    const cands = [...document.querySelectorAll(`[data-ref~="${r}"]`)].filter(e => e.getClientRects().length && !e.closest('[hidden]'));
+    const inStage = cands.find(e => e.closest('#stage'));
+    const target = inStage || cands[0]; if (!target) continue;
+    const w = target.closest('.win'); if (w) focusWin = w.id;
+    // On a narrow screen, bring a panel into view when the voice names something in it and the stage has no copy.
+    if (!inStage && window.innerWidth < 720 && target.scrollIntoView) {
+      const b = target.getBoundingClientRect(), top = 0, bottom = window.innerHeight - $('guide').offsetHeight;
+      if (b.top < top || b.bottom > bottom) window.scrollBy({ top: b.top - top - 12, behavior: 'smooth' });
+    }
+  }
+  for (const id of WINS) $(id).classList.toggle('focus', id === focusWin && refs.length > 0);
+}
+
+function caption(s) {
+  const box = $('say');
+  if (s.clip && VOICE[s.clip].s.length && !s.text) box.innerHTML = VOICE[s.clip].s.map(x => `<span class="sent now">${x[1]}</span>`).join(' ');
+  else box.innerHTML = `<span class="now">${s.text ? s.text(caseView(worldAt(pos))) : ''}</span>`;
+}
+function captionAt(s, t) {
+  const ss = VOICE[s.clip].s, sents = $('say').querySelectorAll('.sent'); if (!sents.length) return;
+  let cur = 0; for (let i = 0; i < ss.length; i++) if (t >= ss[i][0] - 0.05) cur = i;
+  sents.forEach((e, i) => e.classList.toggle('now', i === cur));
+  const on = new Set(VOICE[s.clip].h.map((h, i) => t >= h[0] && t < h[1] ? i : -1).filter(i => i >= 0));
+  $('say').querySelectorAll('.ph').forEach(e => e.classList.toggle('on', on.has(+e.dataset.h)));
+}
+
+// ---- One run of clips on a clock: the audio's own time with sound, a timer at the same pace without.
+let run = null;
+function stopRun() { if (!run) return; const r = run; run = null; clearTimeout(r.to); if (r.el) { r.el.onended = r.el.onerror = null; try { r.el.pause(); } catch (e) {} } }
+const raf = f => typeof requestAnimationFrame === 'function' ? requestAnimationFrame(f) : setTimeout(() => f(performance.now()), 16);
+function playList(list, s, events, onEnd, withSound) {
+  stopRun();
+  const r = run = { i: -1, el: null, to: 0 };
+  const fired = new Set();
+  const fireUpTo = t => { for (const [at, key, fn] of events) if (!fired.has(key) && t >= at) { fired.add(key); fn(); } };
+  const nextClip = () => {
+    if (run !== r) return;
+    r.i++;
+    if (r.i >= list.length) { fireUpTo(Infinity); run = null; setHL([]); caption(s); onEnd(); return; }
+    const id = list[r.i], t0 = performance.now(), main = id === s.clip;
+    let el = null;
+    if (withSound) { el = clipEl(id); if (el) { el.onended = nextClip; el.onerror = nextClip; try { el.currentTime = 0; } catch (e) {} el.playbackRate = rate; const p = el.play(); if (p && p.catch) p.catch(() => { if (run === r) { unlocked = false; $('start').hidden = false; } }); } }
+    r.el = el;
+    const now = () => el ? el.currentTime : (performance.now() - t0) / 1000 * rate;
+    const tick = () => {
+      if (run !== r || r.el !== el) return;
+      if (el && !(el.currentTime > 0) && performance.now() - t0 > 3000) { el.onended = el.onerror = null; nextClip(); return; }
+      const t = now();
+      if (main) { captionAt(s, t); fireUpTo(t); }
+      setHL((VOICE[id].h || []).filter(h => t >= h[0] && t < h[1]).map(h => h[2]));
+      if (!el && t >= VOICE[id].d) { nextClip(); return; }
+      raf(tick);
+    };
+    raf(tick);
+  };
+  nextClip();
+}
+
+// ---- Entering a step: build its stage, show the world it starts from, then run its clip's events.
+function waitsForUser(s) { return (s.ask && !s.free) || s.hands; }
+function enter(viaMark) {
+  const s = steps[pos], i = pos;
+  stopRun(); clearTimeout(timer); drawn.clear();
+  const prev = live, w = clone(worldAt(i));
+  showWorld(w, prev && prev.n !== null && w.n !== null && w.n >= prev.n ? prev : null);
+  buildStage(s); chrome(s); caption(s); setHL([]);
+  const list = [];
+  if (viaMark && s.markReact && sound()) list.push(CASES[w.caseK].call === CASES[w.caseK].y ? 'mR' : 'mW');
+  if (s.clip) list.push(s.clip); else if (s.react) list.push(s.react);
+  const m = s.muts || {};
+  const apply = fn => () => { if (pos !== i) return; const before = live, nw = clone(live); fn(nw); showWorld(nw, before); };
+  const events = [];
+  if (s.clip) {
+    const V = VOICE[s.clip];
+    for (const [at, id] of V.D || []) events.push([at, 'd:' + id, () => { if (pos === i) onDraw(id); }]);
+    for (const [at, id] of V.K || []) if (m['dock:' + id]) events.push([at, 'k:' + id, () => { if (pos === i) onDock(id, apply(m['dock:' + id])); }]);
+    if (m.cue) events.push([V.c ?? 0, 'cue', apply(m.cue)]);
+  } else if (m.cue) apply(m.cue)();
+  const after = () => { if (pos !== i) return; doneAt = i; if (playing) advanceLater(s, 300); };
+  if (list.length) playList(list, s, events, after, sound());
+  else { doneAt = i; if (playing) advanceLater(s, s.free ? 1200 : 2500); }
+}
+function advanceLater(s, ms) { clearTimeout(timer); if (waitsForUser(s) || steps[pos].stage === 'done') return; timer = setTimeout(() => { if (playing) next(s.ask && s.free); }, ms); }
+function chrome(s) {
+  $('scrub').max = steps.length - 1; $('scrub').value = pos;
+  $('stepN').textContent = `${pos + 1} / ${steps.length}`;
+  $('phase').textContent = s.stage === 'done' ? 'Done · step back to replay any moment' : pos >= YOUR_TURN ? 'Your turn · each mark is one footstep' : s.ask ? 'Mark the call · → marks it for you' : s.hands ? 'Try it, then press › when ready' : `Guided · ${YOUR_TURN - pos} steps to your turn`;
+  $('kBack').disabled = pos === 0;
+  $('kNext').disabled = s.stage === 'done';
+  $('msg').hidden = true;
+}
+
+// ---- Moving through the timeline. Past the last step, the reader's turn adds the next step of the same loop.
+function extend() {
+  const s = steps[steps.length - 1], w = worldAt(steps.length - 1);
+  if (s.stage === 'done') return false;
+  if (s.ask) { steps.push(freeStep(w.caseK, 'upd')); return true; }
+  if (w.caseK + 1 < N) { steps.push(freeStep(w.caseK + 1, 'ask')); return true; }
+  return false;
+}
+function go(to, viaMark) {
+  if (to < 0) return;
+  if (to >= steps.length && !extend()) { stop(); return; }
+  pos = Math.min(to, steps.length - 1); enter(viaMark);
+}
+const next = viaMark => go(pos + 1, viaMark);
+function back() { stop(); stopRun(); live = null; go(pos - 1); }
+function mark(saysRight) {
+  const s = steps[pos], c = caseView(worldAt(pos)); if (!s.ask) return;
+  if (saysRight === (c.call === c.y)) { next(true); return; }
+  const m = $('msg'); m.hidden = false; m.className = 'msg warn';
+  m.textContent = `Check the report: it says ${word(c.y)}, and the model said ${word(c.call)}. So the call is ${c.call === c.y ? 'right' : 'wrong'}.`;
+}
+function runRest() {
+  stop(); const w = worldAt(pos); if (w.n >= N) return;
+  steps = steps.slice(0, Math.max(pos + 1, YOUR_TURN + 1)); worlds.length = steps.length; steps.push(doneStep());
+  pos = steps.length - 1; enter();
+}
+function play() {
+  playing = true; setPlayIcon();
+  const s = steps[pos];
+  if (doneAt !== pos) { live = null; enter(); return; }
+  if (waitsForUser(s)) { if (s.hands) next(); return; }
+  next(s.ask && s.free);
+}
+function stop() { playing = false; clearTimeout(timer); setPlayIcon(); }
+function setPlayIcon() { $('playIcon').innerHTML = playing ? '<path d="M3.5 2.5h2.5v9H3.5zM8 2.5h2.5v9H8z" fill="currentColor"/>' : '<path d="M4 2.5v9l7.5-4.5z" fill="currentColor"/>'; $('kPlay').setAttribute('aria-label', playing ? 'Pause' : 'Play'); }
+function setSoundUI() { $('kSound').textContent = muted ? 'Sound off' : 'Sound on'; $('kSound').setAttribute('aria-pressed', String(!muted)); $('kRate').textContent = rate === 1 ? '1×' : '1.25×'; }
+function gesture() { unlocked = true; $('start').hidden = true; }
+
+// Knobs belong to the reader until the model takes over.
+function onKnob() {
+  if (!live || live.n !== null) return;
+  knob.w = +$('kw').value; knob.b = +$('kb').value;
+  const st = stat(knob.w, knob.b);
+  if (live.curve.mode === 'S' && (!handBest || st.J < handBest.J)) handBest = { w: knob.w, b: knob.b, J: st.J, acc: st.acc };
+  renderChips(live); renderCase(live, steps[pos]); drawCurve(live); drawMapPanel(live);
+}
+$('kw').addEventListener('input', onKnob); $('kb').addEventListener('input', onKnob);
+$('bStart').addEventListener('click', () => { gesture(); muted = false; store.set('teach-muted', '0'); setSoundUI(); playing = true; setPlayIcon(); live = null; enter(); });
+$('kSound').addEventListener('click', () => { gesture(); muted = !muted; store.set('teach-muted', muted ? '1' : '0'); setSoundUI(); if (run) { live = null; enter(); } });
+$('kReplay').addEventListener('click', () => { gesture(); live = null; enter(); });
+$('kRate').addEventListener('click', () => { rate = rate === 1 ? 1.25 : 1; store.set('teach-rate', String(rate)); setSoundUI(); if (run && run.el) run.el.playbackRate = rate; });
+$('kNext').addEventListener('click', () => { gesture(); stop(); next(steps[pos].ask); });
+$('kBack').addEventListener('click', () => { gesture(); back(); });
+$('kPlay').addEventListener('click', () => { gesture(); if (playing) { stop(); stopRun(); } else play(); });
+$('scrub').addEventListener('input', e => { gesture(); stop(); live = null; pos = +e.target.value; enter(); });
+$('bRight').addEventListener('click', () => { gesture(); mark(true); });
+$('bWrong').addEventListener('click', () => { gesture(); mark(false); });
+$('bNext').addEventListener('click', () => {
+  gesture(); stop(); const s = steps[pos];
+  if (steps[pos + 1] && steps[pos + 1].stage === 'done') { steps = steps.slice(0, pos + 1); worlds.length = steps.length; }
+  if (s.ask) { const m = $('msg'); m.hidden = false; m.className = 'msg'; m.textContent = 'Mark this call first: that mark is what the model learns from.'; return; }
+  next();
+});
+$('bAll').addEventListener('click', () => { gesture(); runRest(); });
+$('stage').addEventListener('click', e => { const b = e.target.closest('[data-eta]'); if (!b) return; const eta = b.dataset.eta; const tok = ++stageToken; loop(tok, t => { const n = Math.min(N, Math.round(t / 4 * N)); drawMap($('stageMap'), { id: 's3', bounds: [-1, 11, -7, 7], aspect: 0.6, bottom: true, start: true, paths: [{ pts: PATHS[eta], n, color: b.style.color, ref: b.dataset.ref, width: 2 }] }); return n < N; }); });
+document.addEventListener('keydown', e => {
+  if (e.metaKey || e.ctrlKey || e.altKey || e.target instanceof HTMLInputElement) return;
+  if (e.key === 'Escape') { $('detour').hidden = true; return; }
+  if (e.key === 'ArrowRight') { e.preventDefault(); gesture(); stop(); next(steps[pos].ask); }
+  else if (e.key === 'ArrowLeft') { e.preventDefault(); gesture(); back(); }
+  else if (e.key === ' ' && !(e.target instanceof HTMLButtonElement)) { e.preventDefault(); gesture(); if (playing) { stop(); stopRun(); } else play(); }
+});
+window.addEventListener('resize', () => { if (live) { drawCurve(live); drawMapPanel(live); const s = steps[pos]; if (['land', 'fog', 'three'].includes(s.stage)) stageMap(s); } });
+if (typeof ResizeObserver === 'function') new ResizeObserver(() => document.documentElement.style.setProperty('--guide-h', $('guide').offsetHeight + 'px')).observe($('guide'));
+if (window.innerWidth < 720) $('monitor').open = false;
+setSoundUI();
+enter();
+</script>
+<footer style="max-width:1100px;margin:24px auto 0;padding:16px max(16px, env(safe-area-inset-left)) calc(24px + var(--guide-h, 0px));font:13px/1.6 system-ui, sans-serif;color:#6f665c;border-top:1px solid #d8cdbf">Data: Wisconsin Diagnostic Breast Cancer dataset, 569 biopsies, as shipped with scikit-learn. Feature: mean radius of the cell nuclei. Accuracy figures are on the same 569 biopsies the model learned from, so they show how well it fits, not how it would do on new patients.</footer>
+</body>
+</html>
