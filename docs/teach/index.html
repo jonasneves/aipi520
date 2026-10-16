@@ -36,12 +36,13 @@ body { margin: 0; background: var(--paper); color: var(--ink); font: 400 15px/24
 button { font: inherit; color: inherit; }
 :focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 .label { font: 600 11px/16px var(--sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
-.page { width: min(100% - 32px, 1320px); margin: 0 auto; padding: 16px 0 24px; }
-header h1 { font: 400 32px/36px var(--serif); margin: 0 0 2px; letter-spacing: -0.01em; }
-header p { font: 400 16px/24px var(--serif); color: var(--ink-2); margin: 0 0 12px; }
+.page { width: min(100% - 32px, 1320px); margin: 0 auto; padding: 12px 0; }
+header { display: flex; flex-wrap: wrap; align-items: baseline; gap: 2px 16px; margin: 0 0 8px; }
+header h1 { font: 400 28px/34px var(--serif); margin: 0; letter-spacing: -0.01em; }
+header p { font: 400 16px/24px var(--serif); color: var(--ink-2); margin: 0; }
 
 /* Values strip: every quantity introduced so far, for the biopsy on screen. */
-.monitor { background: var(--sheet); border: 1px solid var(--edge); border-radius: var(--r2); margin-bottom: 14px; }
+.monitor { background: var(--sheet); border: 1px solid var(--edge); border-radius: var(--r2); margin-bottom: 12px; }
 .monitor summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 6px 12px; }
 .monitor summary::-webkit-details-marker { display: none; }
 .monitor summary::before { content: "▸"; color: var(--ink-2); font-size: 14px; width: 16px; text-align: center; transition: transform 200ms var(--ease); }
@@ -56,9 +57,11 @@ header p { font: 400 16px/24px var(--serif); color: var(--ink-2); margin: 0 0 12
 .chip.pending { opacity: 0.45; }
 
 /* The desk */
-.desk { display: grid; grid-template-columns: minmax(0, 330px) minmax(0, 1fr) minmax(0, 330px); grid-template-areas: "left center right"; gap: 16px; align-items: start; }
+.desk { display: grid; grid-template-columns: minmax(0, 330px) minmax(0, 1fr) minmax(0, 330px); grid-template-areas: "curve center map" "curve center case" "note center case"; grid-template-rows: auto auto 1fr; gap: 14px; align-items: start; }
 .col { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
-.c-left { grid-area: left; } .c-center { grid-area: center; } .c-right { grid-area: right; }
+.c-left, .c-right { display: contents; } .c-center { grid-area: center; }
+.datanote { grid-area: note; margin: 0; font: 400 12px/18px var(--sans); color: var(--ink-3); }
+#wCase { grid-area: case; } #wCurve { grid-area: curve; } #wMap { grid-area: map; }
 .win { background: var(--sheet); border: 1px solid var(--edge); border-radius: var(--r3); box-shadow: var(--shadow-2); overflow: clip; min-width: 0; --f: 0; transition: box-shadow 280ms var(--ease); }
 .win.focus { --f: 1; box-shadow: var(--shadow-3), 0 0 0 1px var(--copper-line); }
 .tb { height: 36px; display: flex; align-items: center; justify-content: space-between; gap: 8px; padding: 0 12px 0 14px; border-bottom: 1px solid color-mix(in srgb, var(--copper) calc(var(--f) * 24%), var(--rule)); background: color-mix(in srgb, var(--copper) calc(var(--f) * 7%), transparent); }
@@ -193,13 +196,13 @@ svg [data-ref] { transition: filter 350ms var(--ease); }
 @keyframes hlpulse { from { box-shadow: 0 0 0 0 rgb(166 77 29 / 0.45); } to { box-shadow: 0 0 0 10px rgb(166 77 29 / 0); } }
 
 @media (max-width: 1099px) {
-  .desk { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "center center" "left right"; }
+  .desk { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); grid-template-areas: "center center" "case map" "curve map" "note note"; grid-template-rows: auto auto 1fr auto; }
 }
 @media (max-width: 719px) {
   .page { width: calc(100% - 24px); padding-bottom: calc(var(--guide-h) + 16px); }
   header h1 { font-size: 26px; line-height: 32px; }
   header p { font-size: 15px; line-height: 22px; }
-  .desk { grid-template-columns: minmax(0, 1fr); grid-template-areas: "center" "left" "right"; }
+  .desk { grid-template-columns: minmax(0, 1fr); grid-template-areas: "center" "case" "curve" "map" "note"; grid-template-rows: none; }
   .stage { min-height: 0; height: auto; max-height: 62vh; padding: 12px 14px; gap: 8px; }
   .s-title { font-size: 22px; line-height: 28px; }
   .s-big { font-size: 32px; line-height: 36px; }
@@ -310,6 +313,7 @@ svg [data-ref] { transition: filter 350ms var(--ease); }
         </div>
       </section>
     </div>
+    <p class="datanote">Data: Wisconsin Diagnostic Breast Cancer dataset, 569 biopsies, as shipped with scikit-learn. Feature: mean radius of the cell nuclei. Accuracy figures are on the same 569 biopsies the model learned from, so they show how well it fits, not how it would do on new patients.</p>
   </main>
 </div>
 <div class="detour" id="detour" role="dialog" aria-modal="false" hidden><button class="tbtn x" id="detourX" type="button">Close</button><h3 id="detourH"></h3><div id="detourB"></div></div>
@@ -611,13 +615,23 @@ function drawMap(host, opts) {
   return svg;
 }
 const PANEL_BD = [-1, 6, -3, 2];
+// On a wide screen the right column (Map over Case) is the tallest; the Map's drawing gives up height so the column ends inside the window.
+let mapAspect = 0.58;
+function fitDesk() {
+  if (window.innerWidth < 1100 || !live || $('wMap').hidden) { if (mapAspect !== 0.58) { mapAspect = 0.58; if (live) drawMapPanel(live); } return; }
+  const host = $('mapPanel'), wd = host.clientWidth; if (!wd) return;
+  const bottom = Math.max($('wMap').getBoundingClientRect().bottom, $('wCase').hidden ? 0 : $('wCase').getBoundingClientRect().bottom) + window.scrollY;
+  const want = Math.max(wd * 0.36, Math.min(wd * 0.58, host.offsetHeight - (bottom + 12 - window.innerHeight)));
+  if (Math.abs(want - host.offsetHeight) < 3) return;
+  mapAspect = want / wd; drawMapPanel(live);
+}
 function drawMapPanel(w, nShow) {
   const sl = $('stageLive'), nn = nShow ?? w.n;
   if (sl && nn !== null) drawMap(sl, { id: 'l', bounds: PANEL_BD, aspect: 0.5, bottom: true, start: true, you: true, hiker: PATH[nn], paths: nn ? [{ pts: PATH, n: nn, width: 2 }] : [] });
   $('wMap').hidden = !w.panels.includes('map');
   if ($('wMap').hidden) return;
   const n = nShow ?? w.n;
-  drawMap($('mapPanel'), { id: 'p', bounds: PANEL_BD, aspect: 0.72, bottom: w.map.bottom, you: w.map.you, start: true, hiker: w.map.hiker && n !== null ? PATH[n] : null, paths: n ? [{ pts: PATH, n }] : [] });
+  drawMap($('mapPanel'), { id: 'p', bounds: PANEL_BD, aspect: mapAspect, bottom: w.map.bottom, you: w.map.you, start: true, hiker: w.map.hiker && n !== null ? PATH[n] : null, paths: n ? [{ pts: PATH, n }] : [] });
   const [mw, mb] = n === null ? [knob.w, knob.b] : PATH[n], st = stat(mw, mb);
   $('mJ').textContent = st.J.toFixed(3); $('mAcc').textContent = pct(st.acc); $('mFlip').textContent = isNaN(flipOf(mw, mb)) ? '·' : f(flipOf(mw, mb));
   const cb = $('callback');
@@ -646,6 +660,7 @@ function showWorld(w, prev) {
   const from = prev && prev.n !== null && w.n !== null ? prev.n : null;
   if (from !== null && w.n > from) animateN(w, from, w.n, w.n - from === 1 ? 700 : Math.min(2600, 30 * (w.n - from)));
   else { if (anim) { cancelAnimationFrame(anim); anim = null; } drawCurve(w); drawMapPanel(w); }
+  fitDesk();
 }
 
 // ---- Stage scenes. Items appear on their {d:id} word; items a clip never names appear at once.
@@ -698,7 +713,7 @@ const SCENES = {
     item(`<div class="s-row"><div class="s-card"><span class="label">near miss</span><div class="s-big" style="font-size:28px">p = 0.51</div><span class="s-note">wrong: 1 mistake</span></div><div class="s-card"><span class="label">wild miss</span><div class="s-big" style="font-size:28px">p = 0.99</div><span class="s-note">wrong: 1 mistake</span></div></div>`, 'same', 'same'),
   surprise: () => item(`<p class="s-note">The truth is benign. The model gave benign this probability:</p><div class="meter">${[['m1', 0.99], ['m2', 0.5], ['m3', 0.08]].map(([id, q]) => `<div><span data-ref="${id}">${q}</span><i style="transform:scaleX(${(-Math.log(q) / 2.6).toFixed(3)})"></i><b data-ref="${id}">${(-Math.log(q)).toFixed(2)}</b></div>`).join('')}</div><p class="s-note">surprise</p>`, 'meter') +
     item(`<div class="s-tex" data-dockfrom="J" data-tex="\\begin{aligned}\\htmlClass{r-L}{L} &= -\\ln(\\text{prob. given to the truth})\\\\ \\htmlClass{r-loss}{J} &= \\text{average of } L \\text{ over all 569}\\end{aligned}"></div><p class="s-note"><button class="help" data-detour="ln" aria-label="What is ln?">?</button></p>`, 'Lf') +
-    item(plotSVG(w => Jof(w, BEST.b), { x0: 0, x1: 6, y0: 0.25, y1: 0.75, xt: [0, 2, 4, 6], yt: [0.3, 0.5, 0.7], label: 'J as w turns (same b): smooth, with a bottom', h: 150 }), 'bowl', 'loss'),
+    item(plotSVG(w => Jof(w, BEST.b), { x0: 0, x1: 6, y0: 0.25, y1: 0.75, xt: [0, 2, 4, 6], yt: [0.3, 0.5, 0.7], label: 'J as w turns (same b): smooth, with a bottom', h: 120 }), 'bowl', 'loss'),
   land: () => `<div class="mapbox item" data-item="map" data-ref="map" data-dockfrom="map" id="stageMap"></div><p class="s-note item" data-item="mapnote">Each point is one setting of (w, b). Its shade is its average surprise J: lighter is lower.</p>`,
   fog: () => `<div class="mapbox item" data-item="fog" id="stageMap"></div>` + item('<p class="s-note">One case gives a rough slope, fast. All 569 give the true slope, slowly.</p>', 'one'),
   ask: () => { const c = caseView(live); return item(`<div class="s-card"><span class="label">Biopsy ${c.k + 1}${live.n !== null ? '' : ''}</span><div class="s-big" data-ref="x">${f(c.x)}</div><div class="s-note" data-ref="p call">model: ${dx(c.call)}, p = ${fp(c.p)}</div><div class="s-note" data-ref="truth">pathology: ${dx(c.y)}</div></div>`, 'askcard') + item('<p class="s-note">Mark the call in the Case panel.</p>', 'askhint'); },
@@ -922,13 +937,13 @@ function showCoach(s, spec) {
   t.classList.add('coach-on');
   // The way on lives in the guide's own status line.
   if (spec.to === '#kPlay') { $('phase').textContent = spec.text; $('phase').classList.add('go'); return; }
-  // Repeated marks in free play get the ring only; the note is for the first two.
-  if (s.free && s.ask && pos > YOUR_TURN + 2) return;
-  const n = coach.note = document.createElement('p'); n.className = 'coach'; n.setAttribute('role', 'status'); n.textContent = spec.text; t.after(n);
+  // Free play gets the ring only: the voice gives the instruction on its first case, and the loop is familiar after that.
+  if (s.free && s.ask) return;
+  const n = coach.note = document.createElement('p'); n.className = 'coach'; n.setAttribute('role', 'status'); n.textContent = spec.text; t.after(n); fitDesk();
   const r = t.getBoundingClientRect(), bottom = window.innerHeight - (window.innerWidth < 720 ? $('guide').offsetHeight + 8 : 0);
   if (r.top < 60 || r.bottom + 40 > bottom) t.scrollIntoView({ block: 'center', behavior: 'smooth' });
 }
-function hideCoach() { clearTimeout(coachIdle); if (coach) { coach.t.classList.remove('coach-on'); if (coach.note) coach.note.remove(); } coach = null; $('phase').classList.remove('go'); }
+function hideCoach() { clearTimeout(coachIdle); if (coach) { coach.t.classList.remove('coach-on'); if (coach.note) coach.note.remove(); } coach = null; $('phase').classList.remove('go'); fitDesk(); }
 // Once the learner has tried the sliders and paused, the prompt moves to the way on.
 function coachTried() {
   if (!coach || !coach.s.hands) return;
@@ -1035,12 +1050,11 @@ document.addEventListener('keydown', e => {
   else if (e.key === 'ArrowLeft') { e.preventDefault(); gesture(); back(); }
   else if (e.key === ' ' && !(e.target instanceof HTMLButtonElement)) { e.preventDefault(); gesture(); togglePlay(); }
 });
-window.addEventListener('resize', () => { chipsH = 0; if (live) { renderChips(live); drawCurve(live); drawMapPanel(live); const s = steps[pos]; if (['land', 'fog', 'three'].includes(s.stage)) stageMap(s); } });
+window.addEventListener('resize', () => { chipsH = 0; if (live) { renderChips(live); fitDesk(); drawCurve(live); drawMapPanel(live); const s = steps[pos]; if (['land', 'fog', 'three'].includes(s.stage)) stageMap(s); } });
 if (typeof ResizeObserver === 'function') new ResizeObserver(() => document.documentElement.style.setProperty('--guide-h', $('guide').offsetHeight + 'px')).observe($('guide'));
 if (window.innerWidth < 720) $('monitor').open = false;
 setSoundUI();
 poster();
 </script>
-<footer style="width:min(100% - 32px, 1320px);box-sizing:border-box;margin:24px auto 0;padding:16px 0 calc(24px + var(--guide-h, 0px));font:13px/1.6 system-ui, sans-serif;color:#6f665c;border-top:1px solid #d8cdbf">Data: Wisconsin Diagnostic Breast Cancer dataset, 569 biopsies, as shipped with scikit-learn. Feature: mean radius of the cell nuclei. Accuracy figures are on the same 569 biopsies the model learned from, so they show how well it fits, not how it would do on new patients.</footer>
 </body>
 </html>
