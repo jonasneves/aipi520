@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 128 128" width="128" height="128">
+  <!-- Gradient descent on a loss curve: steps shrinking down the bowl, the minimum lit in the explainers' rust. -->
+  <rect x="1" y="1" width="126" height="126" rx="28" fill="#2a2622"/>
+  <path d="M18 22 Q64 150 110 22" fill="none" stroke="#6f5a4a" stroke-width="8" stroke-linecap="round"/>
+  <g fill="#c99a80">
+    <circle cx="27" cy="45" r="10"/>
+    <circle cx="43" cy="72" r="10"/>
+  </g>
+  <circle cx="64" cy="86" r="13" fill="#e8743f"/>
+</svg>
