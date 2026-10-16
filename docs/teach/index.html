@@ -151,7 +151,12 @@ svg .item.on { opacity: 1; }
 /* Guide */
 .guide { background: var(--sheet); border: 1px solid var(--edge); border-radius: var(--r3); box-shadow: var(--shadow-2); padding: 10px 14px; }
 .start { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 0 0 8px; font: 400 13px/20px var(--sans); color: var(--ink-3); }
-.start .btn { background: var(--copper); color: var(--sheet); border-color: var(--copper); }
+.start .btn, .poster .go { background: var(--copper); color: var(--sheet); border-color: var(--copper); }
+.start .btn:hover:not(:disabled), .poster .go:hover { background: #8a3f17; }
+.poster { position: absolute; inset: 0; z-index: 5; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 24px; text-align: center; background: rgb(255 253 248 / 0.82); backdrop-filter: blur(2px); }
+.poster .go { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; font: 600 16px/24px var(--sans); }
+.poster .go svg { width: 14px; height: 14px; flex: none; }
+.poster p { margin: 0; font: 400 13px/20px var(--sans); color: var(--ink-2); max-width: 34ch; }
 .say { font: 400 16px/24px var(--serif); margin: 0 0 6px; min-height: 48px; color: var(--ink-3); }
 .say .now { color: var(--ink); }
 .say .ph { border-radius: 3px; transition: background-color 250ms var(--ease), color 250ms var(--ease); }
@@ -201,6 +206,12 @@ svg [data-ref] { transition: filter 350ms var(--ease); }
   .keys #phase { display: none; }
   .keys .k { display: none; }
 }
+.coach { position: fixed; z-index: 40; max-width: min(280px, calc(100vw - 32px)); background: var(--ink); color: var(--sheet); border-radius: var(--r2); padding: 9px 13px; font: 500 14px/20px var(--sans); box-shadow: var(--shadow-2); pointer-events: none; animation: coachIn 260ms var(--ease); }
+.coach::after { content: ""; position: absolute; left: var(--ax, 50%); width: 10px; height: 10px; background: inherit; transform: translateX(-50%) rotate(45deg); }
+.coach[data-side="above"]::after { bottom: -5px; } .coach[data-side="below"]::after { top: -5px; }
+@keyframes coachIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
+.coach-on { outline: 2px solid var(--copper) !important; outline-offset: 4px; border-radius: 8px; animation: coachRing 1.6s ease-out infinite; }
+@keyframes coachRing { 0% { box-shadow: 0 0 0 0 rgb(166 77 29 / 0.45); } 70%, 100% { box-shadow: 0 0 0 12px rgb(166 77 29 / 0); } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
 </head>
@@ -260,10 +271,11 @@ svg [data-ref] { transition: filter 350ms var(--ease); }
 
     <div class="col c-center">
       <section class="stage" id="stage" aria-live="polite"></section>
+      <div class="coach" id="coach" role="status" hidden></div>
       <nav class="guide" id="guide" aria-label="Guide">
-        <div class="start" id="start">
-          <button class="btn" id="bStart" type="button">Start with sound</button>
-          <span>or read along without sound: use › or the <kbd>→</kbd> key</span>
+        <div class="start" id="start" hidden>
+          <button class="btn" id="bStart" type="button">Turn sound on</button>
+          <span>The browser blocked the voice until you tap.</span>
         </div>
         <p class="say" id="say"></p>
         <div class="ctl">
@@ -303,7 +315,7 @@ svg [data-ref] { transition: filter 350ms var(--ease); }
 <script>
 const DATA = {"r":[17.99,20.57,19.69,11.42,20.29,12.45,18.25,13.71,13,12.46,16.02,15.78,19.17,15.85,13.73,14.54,14.68,16.13,19.81,13.54,13.08,9.5,15.34,21.16,16.65,17.14,14.58,18.61,15.3,17.57,18.63,11.84,17.02,19.27,16.13,16.74,14.25,13.03,14.99,13.48,13.44,10.95,19.07,13.28,13.17,18.65,8.2,13.17,12.05,13.49,11.76,13.64,11.94,18.22,15.1,11.52,19.21,14.71,13.05,8.62,10.17,8.6,14.25,9.17,12.68,14.78,9.46,11.31,9.03,12.78,18.94,8.89,17.2,13.8,12.31,16.07,13.53,18.05,20.18,12.86,11.45,13.34,25.22,19.1,12,18.46,14.48,19.02,12.36,14.64,14.62,15.37,13.27,13.45,15.06,20.26,12.18,9.79,11.6,14.42,13.61,6.98,12.18,9.88,10.49,13.11,11.64,12.36,22.27,11.34,9.78,12.63,14.26,10.51,8.73,11.93,8.95,14.87,15.78,17.95,11.41,18.66,24.25,14.5,13.37,13.85,13.61,19,15.1,19.79,12.19,15.46,16.16,15.71,18.45,12.77,11.71,11.43,14.95,11.28,9.74,16.11,11.43,12.9,10.75,11.9,11.8,14.95,14.44,13.74,13,8.22,9.73,11.15,13.15,12.25,17.68,16.84,12.06,10.9,11.75,19.19,19.59,12.34,23.27,14.97,10.8,16.78,17.47,14.97,12.32,13.43,15.46,11.08,10.66,8.67,9.9,16.46,13.01,12.81,27.22,21.09,15.7,11.41,15.28,10.08,18.31,11.71,11.81,12.3,14.22,12.77,9.72,12.34,14.86,12.91,13.77,18.08,19.18,14.45,12.23,17.54,23.29,13.81,12.47,15.12,9.88,17.01,13.11,15.27,20.58,11.84,28.11,17.42,14.19,13.86,11.89,10.2,19.8,19.53,13.65,13.56,10.18,15.75,13.27,14.34,10.44,15,12.62,12.83,17.05,11.32,11.22,20.51,9.57,14.03,23.21,20.48,14.22,17.46,13.64,12.42,11.3,13.75,19.4,10.48,13.2,12.89,10.65,11.52,20.94,11.5,19.73,17.3,19.45,13.96,19.55,15.32,15.66,15.53,20.31,17.35,17.29,15.61,17.19,20.73,10.6,13.59,12.87,10.71,14.29,11.29,21.75,9.74,17.93,11.89,11.33,18.81,13.59,13.85,19.16,11.74,19.4,16.24,12.89,12.58,11.94,12.89,11.26,11.37,14.41,14.96,12.95,11.85,12.72,13.77,10.91,11.76,14.26,10.51,19.53,12.46,20.09,10.49,11.46,11.6,13.2,9,13.5,13.05,11.7,14.61,12.76,11.54,8.6,12.49,12.18,18.22,9.04,12.43,10.25,20.16,12.86,20.34,12.2,12.67,14.11,12.03,16.27,16.26,16.03,12.98,11.22,11.25,12.3,17.06,12.99,18.77,10.05,23.51,14.42,9.61,11.06,19.68,11.71,10.26,12.06,14.76,11.47,11.95,11.66,15.75,25.73,15.08,11.14,12.56,13.05,13.87,8.88,9.44,12.54,13.3,12.76,16.5,13.4,20.44,20.2,12.21,21.71,22.01,16.35,15.19,21.37,20.64,13.69,16.17,10.57,13.46,13.66,11.08,11.27,11.04,12.05,12.39,13.28,14.6,12.21,13.88,11.27,19.55,10.26,8.73,15.49,21.61,12.1,14.06,13.51,12.8,11.06,11.8,17.91,11.93,12.96,12.94,12.34,10.94,16.14,12.85,17.99,12.27,11.36,11.04,9.4,14.99,15.13,11.89,9.4,15.5,12.7,11.16,11.57,14.69,11.61,13.66,9.74,10.03,10.48,10.8,11.13,12.72,14.9,12.4,20.18,18.82,14.86,13.98,12.87,14.04,13.85,14.02,10.97,17.27,13.78,10.57,18.03,11.99,17.75,14.8,14.53,21.1,11.87,19.59,12,14.53,12.62,13.38,11.63,13.21,13,9.76,17.08,27.42,14.4,11.6,13.17,13.24,13.14,9.67,17.6,11.62,9.67,12.04,14.92,12.27,10.88,12.83,14.2,13.9,11.49,16.25,12.16,13.9,13.47,13.7,15.73,12.45,14.64,19.44,11.68,16.69,12.25,17.85,18.01,12.46,13.16,14.87,12.65,12.47,18.49,20.59,15.04,13.82,12.54,23.09,9.27,9.68,12.22,11.06,16.3,15.46,11.74,14.81,13.4,14.58,15.05,11.34,18.31,19.89,12.88,12.75,9.29,24.63,11.26,13.71,9.85,8.57,13.46,12.34,13.94,12.07,11.75,11.67,13.68,20.47,10.96,20.55,14.27,11.69,7.73,7.69,11.54,14.47,14.74,13.21,13.87,13.62,10.32,10.26,9.68,10.82,10.86,11.13,12.77,9.33,12.88,10.29,10.16,9.42,14.59,11.51,14.05,11.2,15.22,20.92,21.56,20.13,16.6,20.6,7.76],"y":[1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,1,1,1,1,1,1,1,1,0,1,0,0,0,0,0,1,1,0,1,1,0,0,0,0,1,0,1,1,0,0,0,0,1,0,1,1,0,1,0,1,1,0,0,0,1,1,0,1,1,1,0,0,0,1,0,0,1,1,0,0,0,1,1,0,0,0,0,1,0,0,1,0,0,0,0,0,0,0,0,1,1,1,0,1,1,0,0,0,1,1,0,1,0,1,1,0,1,1,0,0,1,0,0,1,0,0,0,0,1,0,0,0,0,0,0,0,0,0,1,0,0,0,0,1,1,0,1,0,0,1,1,0,0,1,1,0,0,0,0,1,0,0,1,1,1,0,1,0,1,0,0,0,1,0,0,1,1,0,1,1,1,1,0,1,1,1,0,1,0,1,0,0,1,0,1,1,1,1,0,0,1,1,0,0,0,1,0,0,0,0,0,1,1,0,0,1,0,0,1,1,0,1,0,0,0,0,1,0,0,0,0,0,1,0,1,1,1,1,1,1,1,1,1,1,1,1,1,1,0,0,0,0,0,0,1,0,1,0,0,1,0,0,1,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,1,0,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,0,0,0,1,0,1,0,0,0,0,1,1,1,0,0,0,0,1,0,1,0,1,0,0,0,1,0,0,0,0,0,0,0,1,1,1,0,0,0,0,0,0,0,0,0,0,0,1,1,0,1,1,1,0,1,1,0,0,0,0,0,1,0,0,0,0,0,1,0,0,0,1,0,0,1,1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,0,0,0,0,1,0,0,1,0,0,0,0,0,0,0,0,0,0,0,0,1,0,1,1,0,1,0,0,0,0,0,1,0,0,1,0,1,0,0,1,0,1,0,0,0,0,0,0,0,0,1,1,0,0,0,0,0,0,1,0,0,0,0,0,0,0,0,0,0,1,0,0,0,0,0,0,0,1,0,1,0,0,1,0,0,0,0,0,1,1,0,1,0,1,0,0,0,0,0,1,0,0,1,0,1,0,1,1,0,0,0,1,0,0,0,0,0,0,0,0,0,0,0,1,0,1,1,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,0,1,1,1,1,1,1,0]};
 // Voice clips: duration (d), caption sentences (s), highlights (h: start, end, ref), stage draws (D), docks (K), cue (c).
-const VOICE = {"v01":{"d":13.04,"h":[[5.52,8.27,"x"],[12.04,13.23,"dots"]],"D":[[0.16,"card"],[2.56,"q"],[8.04,"dots"]],"K":[[8.04,"x"],[13.22,"dots"]],"c":8.04,"s":[[0.16,"One biopsy, one question: is it malignant?"],[3.84,"The model gets one number: <span class=\"ph\" data-h=\"0\">the mean radius of the cell nuclei.</span>"],[8.04,"Here are all five hundred sixty-nine."],[10.32,"Big ones lean malignant, <span class=\"ph\" data-h=\"1\">but they overlap.</span>"]]},"v02":{"d":9.76,"h":[[4.32,7.07,"ruler"],[6.96,9.87,"xt"]],"D":[[0.0,"spread"],[4.32,"ruler"],[6.96,"xtf"],[6.96,"pin"]],"K":[[9.94,"xt"]],"c":6.96,"s":[[0.0,"Before the model uses it, we measure every radius on one ruler: <span class=\"ph\" data-h=\"0\">how many typical distances from the average.</span>"],[6.96,"<span class=\"ph\" data-h=\"1\">This one sits about one typical distance above.</span>"]]},"v03":{"d":9.76,"h":[[3.76,5.79,"w"],[7.2,9.47,"b"]],"D":[[0.0,"zf"],[3.76,"kw"],[7.2,"kb"]],"K":[[9.2,"knobs"]],"c":7.2,"s":[[0.0,"The model&#x27;s score is a straight line, set by two knobs."],[3.76,"<span class=\"ph\" data-h=\"0\">w is sensitivity:</span> how much radius matters."],[7.2,"<span class=\"ph\" data-h=\"1\">b is the baseline lean.</span>"],[9.2,"Try them."]]},"v04":{"d":12.8,"h":[[5.52,9.95,"bulb"],[9.72,11.87,"p"]],"D":[[0.0,"dimmer"],[9.72,"sig"]],"K":[[11.6,"p"]],"c":9.72,"s":[[0.0,"A score can be any size, but we want a probability."],[3.72,"So it goes through a dimmer: <span class=\"ph\" data-h=\"0\">big scores push toward one, small toward zero, never past.</span>"],[9.72,"<span class=\"ph\" data-h=\"1\">That dimmer is the sigmoid.</span>"],[11.6,"Now fit the dots."]]},"v05":{"d":12.08,"h":[[4.4,7.39,"stairs"],[9.28,12.27,"same"]],"D":[[0.0,"stairs"],[9.28,"same"]],"K":[],"c":9.28,"s":[[0.0,"But how good is your fit?"],[1.92,"Counting mistakes is a bad guide."],[4.4,"<span class=\"ph\" data-h=\"0\">Nudge a knob, and the count usually doesn&#x27;t budge</span>: no hint which way to turn."],[9.28,"<span class=\"ph\" data-h=\"1\">And a near miss counts the same as a wild one.</span>"]]},"v06":{"d":15.36,"h":[[4.0,6.75,"m1"],[6.64,8.51,"m2"],[8.72,10.43,"m3"],[13.84,15.47,"loss"]],"D":[[0.0,"meter"],[11.52,"Lf"],[13.84,"bowl"]],"K":[[15.54,"J"]],"c":10.22,"s":[[0.0,"Better: ask how surprised the model should be by the truth."],[4.0,"<span class=\"ph\" data-h=\"0\">Sure and right: almost none.</span>"],[6.64,"<span class=\"ph\" data-h=\"1\">A coin flip: some.</span>"],[8.72,"<span class=\"ph\" data-h=\"2\">Sure and wrong:</span> a lot."],[11.52,"Average that surprise over every case, <span class=\"ph\" data-h=\"3\">and you get a smooth grade.</span>"]]},"v07":{"d":11.12,"h":[[3.48,5.07,"map"],[4.96,6.59,"you"],[6.64,9.15,"bottom"]],"D":[[0.0,"map"],[4.96,"you"],[6.64,"bottom"]],"K":[[11.3,"map"]],"c":6.64,"s":[[0.0,"Every setting of the knobs has a grade."],[2.48,"Lay them all out, <span class=\"ph\" data-h=\"0\">and you get a landscape.</span>"],[4.96,"<span class=\"ph\" data-h=\"1\">Your fit is here.</span>"],[6.64,"<span class=\"ph\" data-h=\"2\">The best fit is the bottom of the valley.</span>"],[9.28,"Learning means walking down."]]},"v08":{"d":10.56,"h":[[3.96,6.47,"arrow"]],"D":[[0.0,"fog"],[3.96,"arrow"],[6.4,"one"]],"K":[[10.74,"hiker"]],"c":6.4,"s":[[0.0,"But the model can&#x27;t see the landscape."],[2.4,"It&#x27;s a hiker in fog, <span class=\"ph\" data-h=\"0\">feeling only the slope underfoot.</span>"],[6.4,"And it feels it one case at a time: a rough guess, but fast."]]},"v09":{"d":16.64,"h":[[2.8,5.31,"err"],[5.44,8.67,"xt"],[8.36,11.47,"ghost"],[11.6,13.79,"eta"],[14.64,16.75,"map"]],"D":[[0.0,"rule"],[2.8,"f1"],[5.44,"f2"],[8.36,"ghost"],[11.6,"f3"],[14.64,"nums"]],"K":[[16.82,"dw"]],"c":14.64,"s":[[0.0,"Each mark moves the knobs one footstep."],[2.8,"<span class=\"ph\" data-h=\"0\">The error says which way and how far.</span>"],[5.44,"<span class=\"ph\" data-h=\"1\">The input says how much the radius is to blame:</span> <span class=\"ph\" data-h=\"2\">an average-size biopsy wouldn&#x27;t move w at all.</span>"],[11.6,"<span class=\"ph\" data-h=\"3\">The step size says how bold.</span>"],[14.64,"<span class=\"ph\" data-h=\"4\">Here, one step downhill.</span>"]]},"w302":{"d":4.88,"h":[[0.0,2.75,"p"],[4.0,4.99,"step"]],"D":[],"K":[],"c":4.0,"s":[[0.0,"<span class=\"ph\" data-h=\"0\">Point five six, and right</span>, but unsure: <span class=\"ph\" data-h=\"1\">still a step.</span>"]]},"w84":{"d":2.32,"h":[[1.04,2.43,"step"]],"D":[],"K":[],"c":1.04,"s":[[0.0,"Right again."],[1.04,"<span class=\"ph\" data-h=\"0\">A smaller step.</span>"]]},"w0":{"d":3.2,"h":[[0.0,3.31,"map"]],"D":[],"K":[],"c":0.0,"s":[[0.0,"<span class=\"ph\" data-h=\"0\">Each step wobbles, but the path heads down.</span>"]]},"w40":{"d":3.84,"h":[[1.84,4.03,"map"]],"D":[],"K":[],"c":1.84,"s":[[0.0,"Forty more cases."],[1.84,"<span class=\"ph\" data-h=\"0\">Watch the path find the valley.</span>"]]},"w212":{"d":2.32,"h":[[0.24,2.51,"p"]],"D":[],"K":[],"s":[[0.24,"<span class=\"ph\" data-h=\"0\">Very sure, and right.</span>"]]},"w491":{"d":4.56,"h":[[0.0,2.83,"p"],[2.88,4.67,"truth"]],"D":[],"K":[],"s":[[0.0,"<span class=\"ph\" data-h=\"0\">Ninety-two percent sure: malignant.</span>"],[2.88,"<span class=\"ph\" data-h=\"1\">The report says benign.</span>"]]},"wIns":{"d":3.2,"h":[[0.0,3.31,"pair"]],"D":[[0.0,"pair"]],"K":[],"c":0.0,"s":[[0.0,"<span class=\"ph\" data-h=\"0\">A confident miss takes the longest stride.</span>"]]},"v11":{"d":8.32,"h":[[1.84,3.67,"h1"],[3.52,6.59,"h3"],[6.48,8.51,"h2"]],"D":[[0.0,"three"]],"K":[],"c":1.84,"s":[[0.0,"Step size matters."],[1.84,"<span class=\"ph\" data-h=\"0\">Too timid creeps.</span>"],[3.52,"<span class=\"ph\" data-h=\"1\">Too bold leaps across the valley and back.</span>"],[6.48,"<span class=\"ph\" data-h=\"2\">In between, it arrives.</span>"]]},"g05":{"d":7.84,"h":[[1.04,3.31,"truth"],[3.36,5.15,"call"],[5.92,7.95,"mark"]],"D":[],"K":[],"s":[[0.0,"Your turn."],[1.04,"<span class=\"ph\" data-h=\"0\">The pathology report says benign</span>."],[3.36,"<span class=\"ph\" data-h=\"1\">The model said malignant</span>."],[5.92,"<span class=\"ph\" data-h=\"2\">Is the call right, or wrong?</span>"]]},"g16":{"d":5.2,"h":[[1.04,2.43,"step"]],"D":[],"K":[],"c":1.04,"s":[[0.16,"And..."],[1.04,"<span class=\"ph\" data-h=\"0\">it barely moved</span>."],[2.64,"Nothing to fix, so nothing changes."]]},"g18":{"d":8.88,"h":[[3.08,4.11,"step"],[4.24,9.07,"flip"]],"D":[],"K":[],"c":2.32,"s":[[0.16,"Wrong, and confident!"],[2.32,"So here comes <span class=\"ph\" data-h=\"0\">a big step</span>."],[4.24,"<span class=\"ph\" data-h=\"1\">The flip point jumps from fourteen point six seven to fifteen point five one</span>."]]},"g19":{"d":6.24,"h":[[1.2,2.43,"mark"],[2.72,3.71,"next"],[5.44,6.43,"rest"]],"D":[],"K":[],"s":[[0.0,"Your turn now."],[1.2,"<span class=\"ph\" data-h=\"0\">Mark each call</span>, and press <span class=\"ph\" data-h=\"1\">next case</span> for more."],[4.32,"When you&#x27;ve seen enough, <span class=\"ph\" data-h=\"2\">run the rest</span>."]]},"done":{"d":13.76,"h":[[4.68,7.95,"flip"],[8.32,10.27,"acc"]],"D":[],"K":[],"c":4.68,"s":[[0.0,"All five hundred sixty-nine biopsies, one step each."],[4.68,"<span class=\"ph\" data-h=\"0\">The model flips to malignant at fourteen point eight three</span>, and gets <span class=\"ph\" data-h=\"1\">eighty-eight point two percent right</span>."],[10.56,"Full-batch gradient descent lands almost exactly there."]]},"mR":{"d":1.44,"h":[[0.0,0.83,"mark"]],"D":[],"K":[],"s":[[0.0,"<span class=\"ph\" data-h=\"0\">Right</span>."],[0.88,"Noted."]]},"mW":{"d":2.56,"h":[[0.16,1.07,"mark"]],"D":[],"K":[],"s":[[0.16,"<span class=\"ph\" data-h=\"0\">Wrong</span>."],[1.2,"Let&#x27;s see what it learns."]]},"t1":{"d":1.6,"h":[[0.24,1.55,"step"]],"D":[],"K":[],"s":[[0.24,"<span class=\"ph\" data-h=\"0\">Barely moved</span>."]]},"t2":{"d":1.6,"h":[[0.24,1.55,"step"]],"D":[],"K":[],"s":[[0.24,"<span class=\"ph\" data-h=\"0\">Hardly a nudge</span>."]]},"s1":{"d":1.2,"h":[[0.0,1.31,"step"]],"D":[],"K":[],"s":[[0.0,"<span class=\"ph\" data-h=\"0\">Small nudge</span>."]]},"s2":{"d":1.36,"h":[[0.0,1.55,"step"]],"D":[],"K":[],"s":[[0.0,"<span class=\"ph\" data-h=\"0\">A little correction</span>."]]},"m1":{"d":3.68,"h":[[2.72,3.87,"step"]],"D":[],"K":[],"s":[[0.0,"Missed, but it wasn&#x27;t sure."],[2.72,"<span class=\"ph\" data-h=\"0\">A medium step</span>."]]},"m2":{"d":2.32,"h":[[1.2,2.43,"step"]],"D":[],"K":[],"s":[[0.0,"Wrong call."],[1.2,"<span class=\"ph\" data-h=\"0\">A decent step</span>."]]},"b1":{"d":1.36,"h":[[0.16,1.31,"step"]],"D":[],"K":[],"s":[[0.16,"<span class=\"ph\" data-h=\"0\">Big one!</span>"]]},"b2":{"d":3.12,"h":[[2.16,3.23,"step"]],"D":[],"K":[],"s":[[0.16,"Wrong, and confident."],[2.16,"<span class=\"ph\" data-h=\"0\">Here it comes!</span>"]]}};
+const VOICE = {"v01":{"d":13.04,"h":[[5.52,8.27,"x"],[12.04,13.23,"dots"]],"D":[[0.16,"card"],[2.56,"q"],[8.04,"dots"]],"K":[[8.04,"x"],[13.22,"dots"]],"c":8.04,"s":[[0.16,"One biopsy, one question: is it malignant?"],[3.84,"The model gets one number: <span class=\"ph\" data-h=\"0\">the mean radius of the cell nuclei.</span>"],[8.04,"Here are all five hundred sixty-nine."],[10.32,"Big ones lean malignant, <span class=\"ph\" data-h=\"1\">but they overlap.</span>"]]},"v02":{"d":9.76,"h":[[4.32,7.07,"ruler"],[6.96,9.87,"xt"]],"D":[[0.0,"spread"],[4.32,"ruler"],[6.96,"xtf"],[6.96,"pin"]],"K":[[9.94,"xt"]],"c":6.96,"s":[[0.0,"Before the model uses it, we measure every radius on one ruler: <span class=\"ph\" data-h=\"0\">how many typical distances from the average.</span>"],[6.96,"<span class=\"ph\" data-h=\"1\">This one sits about one typical distance above.</span>"]]},"v03":{"d":9.76,"h":[[3.76,5.79,"w"],[7.2,9.47,"b"]],"D":[[0.0,"zf"],[3.76,"kw"],[7.2,"kb"]],"K":[[9.2,"knobs"]],"c":7.2,"s":[[0.0,"The model&#x27;s score is a straight line, set by two knobs."],[3.76,"<span class=\"ph\" data-h=\"0\">w is sensitivity:</span> how much radius matters."],[7.2,"<span class=\"ph\" data-h=\"1\">b is the baseline lean.</span>"],[9.2,"Try them."]]},"v04":{"d":12.8,"h":[[5.52,9.95,"bulb"],[9.72,11.87,"p"]],"D":[[0.0,"dimmer"],[9.72,"sig"]],"K":[[11.6,"p"]],"c":9.72,"s":[[0.0,"A score can be any size, but we want a probability."],[3.72,"So it goes through a dimmer: <span class=\"ph\" data-h=\"0\">big scores push toward one, small toward zero, never past.</span>"],[9.72,"<span class=\"ph\" data-h=\"1\">That dimmer is the sigmoid.</span>"],[11.6,"Now fit the dots."]]},"v05":{"d":13.38,"h":[[5.15,8.14,"stairs"],[10.58,13.57,"same"]],"D":[[0.0,"stairs"],[10.58,"same"]],"K":[],"c":10.58,"s":[[0.0,"But how good is your fit?"],[2.37,"Counting mistakes is a bad guide."],[5.15,"<span class=\"ph\" data-h=\"0\">Nudge a knob, and the count usually doesn&#x27;t budge</span>: no hint which way to turn."],[10.58,"<span class=\"ph\" data-h=\"1\">And a near miss counts the same as a wild one.</span>"]]},"v06":{"d":15.36,"h":[[4.0,6.75,"m1"],[6.64,8.51,"m2"],[8.72,10.43,"m3"],[13.84,15.47,"loss"]],"D":[[0.0,"meter"],[11.52,"Lf"],[13.84,"bowl"]],"K":[[15.54,"J"]],"c":10.22,"s":[[0.0,"Better: ask how surprised the model should be by the truth."],[4.0,"<span class=\"ph\" data-h=\"0\">Sure and right: almost none.</span>"],[6.64,"<span class=\"ph\" data-h=\"1\">A coin flip: some.</span>"],[8.72,"<span class=\"ph\" data-h=\"2\">Sure and wrong:</span> a lot."],[11.52,"Average that surprise over every case, <span class=\"ph\" data-h=\"3\">and you get a smooth grade.</span>"]]},"v07":{"d":13.57,"h":[[4.63,6.3,"map"],[6.74,8.53,"you"],[8.72,11.55,"bottom"]],"D":[[0.08,"map"],[6.74,"you"],[8.72,"bottom"]],"K":[[13.75,"map"]],"c":8.72,"s":[[0.08,"Every setting of the knobs has a grade."],[3.55,"Lay them all out, <span class=\"ph\" data-h=\"0\">and you get a landscape.</span>"],[6.74,"<span class=\"ph\" data-h=\"1\">Your fit is here.</span>"],[8.72,"<span class=\"ph\" data-h=\"2\">The best fit is the bottom of the valley.</span>"],[11.73,"Learning means walking down."]]},"v08":{"d":10.56,"h":[[3.96,6.47,"arrow"]],"D":[[0.0,"fog"],[3.96,"arrow"],[6.4,"one"]],"K":[[10.74,"hiker"]],"c":6.4,"s":[[0.0,"But the model can&#x27;t see the landscape."],[2.4,"It&#x27;s a hiker in fog, <span class=\"ph\" data-h=\"0\">feeling only the slope underfoot.</span>"],[6.4,"And it feels it one case at a time: a rough guess, but fast."]]},"v09":{"d":16.64,"h":[[2.8,5.31,"err"],[5.44,8.67,"xt"],[8.36,11.47,"ghost"],[11.6,13.79,"eta"],[14.64,16.75,"map"]],"D":[[0.0,"rule"],[2.8,"f1"],[5.44,"f2"],[8.36,"ghost"],[11.6,"f3"],[14.64,"nums"]],"K":[[16.82,"dw"]],"c":14.64,"s":[[0.0,"Each mark moves the knobs one footstep."],[2.8,"<span class=\"ph\" data-h=\"0\">The error says which way and how far.</span>"],[5.44,"<span class=\"ph\" data-h=\"1\">The input says how much the radius is to blame:</span> <span class=\"ph\" data-h=\"2\">an average-size biopsy wouldn&#x27;t move w at all.</span>"],[11.6,"<span class=\"ph\" data-h=\"3\">The step size says how bold.</span>"],[14.64,"<span class=\"ph\" data-h=\"4\">Here, one step downhill.</span>"]]},"w302":{"d":4.88,"h":[[0.0,2.75,"p"],[4.0,4.99,"step"]],"D":[],"K":[],"c":4.0,"s":[[0.0,"<span class=\"ph\" data-h=\"0\">Point five six, and right</span>, but unsure: <span class=\"ph\" data-h=\"1\">still a step.</span>"]]},"w84":{"d":2.4,"h":[[1.28,2.51,"step"]],"D":[],"K":[],"c":1.28,"s":[[0.24,"Right again."],[1.28,"<span class=\"ph\" data-h=\"0\">A smaller step.</span>"]]},"w0":{"d":3.2,"h":[[0.0,3.31,"map"]],"D":[],"K":[],"c":0.0,"s":[[0.0,"<span class=\"ph\" data-h=\"0\">Each step wobbles, but the path heads down.</span>"]]},"w40":{"d":3.84,"h":[[1.84,4.03,"map"]],"D":[],"K":[],"c":1.84,"s":[[0.0,"Forty more cases."],[1.84,"<span class=\"ph\" data-h=\"0\">Watch the path find the valley.</span>"]]},"w212":{"d":2.32,"h":[[0.24,2.51,"p"]],"D":[],"K":[],"s":[[0.24,"<span class=\"ph\" data-h=\"0\">Very sure, and right.</span>"]]},"w491":{"d":4.56,"h":[[0.0,2.83,"p"],[2.88,4.67,"truth"]],"D":[],"K":[],"s":[[0.0,"<span class=\"ph\" data-h=\"0\">Ninety-two percent sure: malignant.</span>"],[2.88,"<span class=\"ph\" data-h=\"1\">The report says benign.</span>"]]},"wIns":{"d":3.2,"h":[[0.0,3.31,"pair"]],"D":[[0.0,"pair"]],"K":[],"c":0.0,"s":[[0.0,"<span class=\"ph\" data-h=\"0\">A confident miss takes the longest stride.</span>"]]},"v11":{"d":8.32,"h":[[1.84,3.67,"h1"],[3.52,6.59,"h3"],[6.48,8.51,"h2"]],"D":[[0.0,"three"]],"K":[],"c":1.84,"s":[[0.0,"Step size matters."],[1.84,"<span class=\"ph\" data-h=\"0\">Too timid creeps.</span>"],[3.52,"<span class=\"ph\" data-h=\"1\">Too bold leaps across the valley and back.</span>"],[6.48,"<span class=\"ph\" data-h=\"2\">In between, it arrives.</span>"]]},"g05":{"d":7.84,"h":[[1.04,3.31,"truth"],[3.36,5.15,"call"],[5.92,7.95,"mark"]],"D":[],"K":[],"s":[[0.0,"Your turn."],[1.04,"<span class=\"ph\" data-h=\"0\">The pathology report says benign</span>."],[3.36,"<span class=\"ph\" data-h=\"1\">The model said malignant</span>."],[5.92,"<span class=\"ph\" data-h=\"2\">Is the call right, or wrong?</span>"]]},"g16":{"d":5.2,"h":[[1.04,2.43,"step"]],"D":[],"K":[],"c":1.04,"s":[[0.16,"And..."],[1.04,"<span class=\"ph\" data-h=\"0\">it barely moved</span>."],[2.64,"Nothing to fix, so nothing changes."]]},"g18":{"d":8.88,"h":[[3.08,4.11,"step"],[4.24,9.07,"flip"]],"D":[],"K":[],"c":2.32,"s":[[0.16,"Wrong, and confident!"],[2.32,"So here comes <span class=\"ph\" data-h=\"0\">a big step</span>."],[4.24,"<span class=\"ph\" data-h=\"1\">The flip point jumps from fourteen point six seven to fifteen point five one</span>."]]},"g19":{"d":6.24,"h":[[1.2,2.43,"mark"],[2.72,3.71,"next"],[5.44,6.43,"rest"]],"D":[],"K":[],"s":[[0.0,"Your turn now."],[1.2,"<span class=\"ph\" data-h=\"0\">Mark each call</span>, and press <span class=\"ph\" data-h=\"1\">next case</span> for more."],[4.32,"When you&#x27;ve seen enough, <span class=\"ph\" data-h=\"2\">run the rest</span>."]]},"done":{"d":13.76,"h":[[4.68,7.95,"flip"],[8.32,10.27,"acc"]],"D":[],"K":[],"c":4.68,"s":[[0.0,"All five hundred sixty-nine biopsies, one step each."],[4.68,"<span class=\"ph\" data-h=\"0\">The model flips to malignant at fourteen point eight three</span>, and gets <span class=\"ph\" data-h=\"1\">eighty-eight point two percent right</span>."],[10.56,"Full-batch gradient descent lands almost exactly there."]]},"mR":{"d":1.44,"h":[[0.0,0.83,"mark"]],"D":[],"K":[],"s":[[0.0,"<span class=\"ph\" data-h=\"0\">Right</span>."],[0.88,"Noted."]]},"mW":{"d":2.64,"h":[[0.16,0.99,"mark"]],"D":[],"K":[],"s":[[0.16,"<span class=\"ph\" data-h=\"0\">Wrong</span>."],[1.28,"Let&#x27;s see what it learns."]]},"t1":{"d":1.6,"h":[[0.24,1.55,"step"]],"D":[],"K":[],"s":[[0.24,"<span class=\"ph\" data-h=\"0\">Barely moved</span>."]]},"t2":{"d":1.6,"h":[[0.24,1.55,"step"]],"D":[],"K":[],"s":[[0.24,"<span class=\"ph\" data-h=\"0\">Hardly a nudge</span>."]]},"s1":{"d":1.36,"h":[[0.24,1.39,"step"]],"D":[],"K":[],"s":[[0.24,"<span class=\"ph\" data-h=\"0\">Small nudge</span>."]]},"s2":{"d":1.6,"h":[[0.16,1.63,"step"]],"D":[],"K":[],"s":[[0.16,"<span class=\"ph\" data-h=\"0\">A little correction</span>."]]},"m1":{"d":3.68,"h":[[2.72,3.87,"step"]],"D":[],"K":[],"s":[[0.0,"Missed, but it wasn&#x27;t sure."],[2.72,"<span class=\"ph\" data-h=\"0\">A medium step</span>."]]},"m2":{"d":2.32,"h":[[1.2,2.43,"step"]],"D":[],"K":[],"s":[[0.0,"Wrong call."],[1.2,"<span class=\"ph\" data-h=\"0\">A decent step</span>."]]},"b1":{"d":1.28,"h":[[0.24,1.23,"step"]],"D":[],"K":[],"s":[[0.24,"<span class=\"ph\" data-h=\"0\">Big one!</span>"]]},"b2":{"d":3.28,"h":[[2.32,3.47,"step"]],"D":[],"K":[],"s":[[0.24,"Wrong, and confident."],[2.32,"<span class=\"ph\" data-h=\"0\">Here it comes!</span>"]]}};
 const MU = 14.127291739894552, SD = 3.520950760711062, ETA = 0.5, N = DATA.r.length;
 const X = DATA.r.map(r => (r - MU) / SD), Yv = DATA.y;
 
@@ -366,7 +378,7 @@ const GUIDED = [
   { clip: 'v02', stage: 'ruler', muts: { 'dock:xt': w => { add(w.chips, 'xt'); w.curve.sd = true; } } },
   { clip: 'v03', stage: 'knobs', hands: true, muts: { 'dock:knobs': w => { w.curve.knobs = true; w.curve.mode = 'line'; w.level = 'live'; add(w.chips, 'w', 'b', 'z'); } } },
   { clip: 'v04', stage: 'dimmer', hands: true, muts: { cue: w => { w.curve.mode = 'S'; }, 'dock:p': w => { add(w.chips, 'p'); } } },
-  { clip: 'v05', stage: 'count', hands: true },
+  { clip: 'v05', stage: 'count' },
   { clip: 'v06', stage: 'surprise', hands: true, muts: { 'dock:J': w => { w.grade = true; add(w.chips, 'L'); } } },
   { clip: 'v07', stage: 'land', muts: { 'dock:map': w => { add(w.panels, 'map'); w.map.you = true; w.map.bottom = true; } } },
   { clip: 'v08', stage: 'fog', muts: { 'dock:hiker': w => { w.map.hiker = true; w.n = 0; } } },
@@ -379,7 +391,7 @@ const GUIDED = [
   ask(44, 'w212'), upd(44, 'g16'),
   ask(45, 'w491'), upd(45, 'g18', { markReact: true }),
   { clip: 'wIns', stage: 'pair' },
-  { clip: 'v11', stage: 'three', hands: true },
+  { clip: 'v11', stage: 'three' },
   ask(46, 'g19', { free: true, text: null }),
 ];
 const YOUR_TURN = GUIDED.length - 1;
@@ -827,7 +839,7 @@ function stopRun() { if (!run) return; const r = run; run = null; clearTimeout(r
 const raf = f => typeof requestAnimationFrame === 'function' ? requestAnimationFrame(f) : setTimeout(() => f(performance.now()), 16);
 function playList(list, s, events, onEnd, withSound) {
   stopRun();
-  const r = run = { i: -1, el: null, to: 0 };
+  const r = run = { i: -1, el: null, to: 0, audible: withSound };
   const fired = new Set();
   const fireUpTo = t => { for (const [at, key, fn] of events) if (!fired.has(key) && t >= at) { fired.add(key); fn(); } };
   const nextClip = () => {
@@ -854,13 +866,15 @@ function playList(list, s, events, onEnd, withSound) {
 }
 
 // ---- Entering a step: build its stage, show the world it starts from, then run its clip's events.
-function waitsForUser(s) { return (s.ask && !s.free) || s.hands; }
+function waitsForUser(s) { return s.ask || s.hands; }
 function enter(viaMark) {
   const s = steps[pos], i = pos;
-  stopRun(); clearTimeout(timer); drawn.clear();
+  stopRun(); clearTimer(); drawn.clear(); hideCoach();
   const prev = live, w = clone(worldAt(i));
   showWorld(w, prev && prev.n !== null && w.n !== null && w.n >= prev.n ? prev : null);
   buildStage(s); chrome(s); caption(s); setHL([]);
+  // A coach may have scrolled to a panel; each new step brings the stage, where it draws, back into view.
+  const sr = stageEl().getBoundingClientRect(); if (sr.top < 0 || sr.top > window.innerHeight * 0.5) stageEl().scrollIntoView({ block: 'start', behavior: 'smooth' });
   const list = [];
   if (viaMark && s.markReact && sound()) list.push(CASES[w.caseK].call === CASES[w.caseK].y ? 'mR' : 'mW');
   if (s.clip) list.push(s.clip); else if (s.react) list.push(s.react);
@@ -873,15 +887,61 @@ function enter(viaMark) {
     for (const [at, id] of V.K || []) if (m['dock:' + id]) events.push([at, 'k:' + id, () => { if (pos === i) onDock(id, apply(m['dock:' + id])); }]);
     if (m.cue) events.push([V.c ?? 0, 'cue', apply(m.cue)]);
   } else if (m.cue) apply(m.cue)();
-  const after = () => { if (pos !== i) return; doneAt = i; if (playing) advanceLater(s, 300); };
+  const after = () => { if (pos !== i) return; doneAt = i; if (waitsForUser(s)) showCoach(s); if (playing) advanceLater(s, s.free ? 300 : 900); setPlayIcon(); };
   if (list.length) playList(list, s, events, after, sound());
-  else { doneAt = i; if (playing) advanceLater(s, s.free ? 1200 : 2500); }
+  else { doneAt = i; if (waitsForUser(s)) showCoach(s); if (playing) advanceLater(s, s.free ? 1200 : 2500); }
+  setPlayIcon();
 }
-function advanceLater(s, ms) { clearTimeout(timer); if (waitsForUser(s) || steps[pos].stage === 'done') return; timer = setTimeout(() => { if (playing) next(s.ask && s.free); }, ms); }
+function clearTimer() { clearTimeout(timer); timer = null; }
+function advanceLater(s, ms) { clearTimer(); if (waitsForUser(s) || steps[pos].stage === 'done') return; timer = setTimeout(() => { timer = null; if (playing) next(); }, ms); setPlayIcon(); }
+
+// ---- Coach: when a step waits for the learner, a bubble names the move and the control pulses.
+const COACH = {
+  knobs: () => ({ to: '#knobs', text: 'Drag both sliders: w tilts the line, b slides it.' }),
+  dimmer: () => ({ to: '#knobs', text: 'Now it bends into an S. Drag w and b until it rises through the dots.' }),
+  surprise: () => ({ to: '#knobs', text: 'Drag a slider and watch J: it moves smoothly, while % right jumps.' }),
+  ask: () => ({ to: '#fbRow', below: true, text: 'Compare the model\'s call with the pathology above, then mark it.' + (pos === YOUR_TURN ? ' Mark as many as you like, then Run the rest.' : '') }),
+};
+let coach = null, coachIdle = null;
+function showCoach(s, spec) {
+  spec = spec || (COACH[s.stage] && COACH[s.stage]());
+  if (!spec) return;
+  hideCoach();
+  const t = document.querySelector(spec.to); if (!t) return;
+  coach = { t, s, ring: !spec.quiet, below: spec.below };
+  if (coach.ring) t.classList.add('coach-on');
+  // Repeated marks in free play get the ring only; the bubble is for the first two.
+  if (s.free && s.ask && pos > YOUR_TURN + 2) return;
+  const el = $('coach'); el.textContent = spec.text; el.hidden = false;
+  const r = t.getBoundingClientRect(), bottom = window.innerHeight - (window.innerWidth < 720 ? $('guide').offsetHeight + 8 : 0);
+  if (r.top < 60 || r.bottom > bottom - 8) t.scrollIntoView({ block: 'center', behavior: 'smooth' });
+  placeCoach();
+}
+function placeCoach() {
+  const el = $('coach'); if (!coach || el.hidden) return;
+  const r = coach.t.getBoundingClientRect(), cw = el.offsetWidth, ch = el.offsetHeight, vw = window.innerWidth;
+  const floor = window.innerWidth < 720 && !$('guide').contains(coach.t) ? $('guide').getBoundingClientRect().top - 8 : window.innerHeight;
+  const above = coach.below ? r.bottom + ch + 14 > floor : r.top - ch - 14 >= 8;
+  el.dataset.side = above ? 'above' : 'below';
+  const left = Math.max(16, Math.min(vw - cw - 16, r.left + r.width / 2 - cw / 2));
+  el.style.left = left + 'px'; el.style.top = (above ? r.top - ch - 14 : r.bottom + 14) + 'px';
+  el.style.setProperty('--ax', Math.max(14, Math.min(cw - 14, r.left + r.width / 2 - left)) + 'px');
+}
+function hideCoach() { clearTimeout(coachIdle); if (coach) coach.t.classList.remove('coach-on'); coach = null; $('coach').hidden = true; }
+// Once the learner has tried the sliders and paused, the bubble moves to the way on.
+function coachTried() {
+  if (!coach || !coach.s.hands) return;
+  coach.t.classList.remove('coach-on'); $('coach').hidden = true;
+  clearTimeout(coachIdle);
+  const s = coach.s;
+  coachIdle = setTimeout(() => { if (steps[pos] === s) showCoach(s, { to: '#kPlay', below: true, text: 'When you are ready, press ▶ to go on.' }); }, 2500);
+}
+window.addEventListener('scroll', placeCoach, { passive: true });
+window.addEventListener('resize', placeCoach);
 function chrome(s) {
   $('scrub').max = steps.length - 1; $('scrub').value = pos;
   $('stepN').textContent = `${pos + 1} / ${steps.length}`;
-  $('phase').textContent = s.stage === 'done' ? 'Done · step back to replay any moment' : pos >= YOUR_TURN ? 'Your turn · each mark is one footstep' : s.ask ? 'Mark the call · → marks it for you' : s.hands ? 'Try it, then press › when ready' : `Guided · ${YOUR_TURN - pos} steps to your turn`;
+  $('phase').textContent = s.stage === 'done' ? 'Done · step back to replay any moment' : pos >= YOUR_TURN ? 'Your turn · each mark is one footstep' : s.ask ? 'Mark the call · → marks it for you' : s.hands ? 'Try it, then press ▶ when ready' : `Guided · ${YOUR_TURN - pos} steps to your turn`;
   $('kBack').disabled = pos === 0;
   $('kNext').disabled = s.stage === 'done';
   $('msg').hidden = true;
@@ -901,7 +961,7 @@ function go(to, viaMark) {
   pos = Math.min(to, steps.length - 1); enter(viaMark);
 }
 const next = viaMark => go(pos + 1, viaMark);
-function back() { stop(); stopRun(); live = null; go(pos - 1); }
+function back() { stopRun(); live = null; go(pos - 1); }
 function mark(saysRight) {
   const s = steps[pos], c = caseView(worldAt(pos)); if (!s.ask) return;
   if (saysRight === (c.call === c.y)) { next(true); return; }
@@ -917,13 +977,17 @@ function play() {
   playing = true; setPlayIcon();
   const s = steps[pos];
   if (doneAt !== pos) { live = null; enter(); return; }
-  if (waitsForUser(s)) { if (s.hands) next(); return; }
-  next(s.ask && s.free);
+  if (s.hands) { next(); return; }
+  if (s.ask) { showCoach(s); return; }
+  next();
 }
-function stop() { playing = false; clearTimeout(timer); setPlayIcon(); }
-function setPlayIcon() { $('playIcon').innerHTML = playing ? '<path d="M3.5 2.5h2.5v9H3.5zM8 2.5h2.5v9H8z" fill="currentColor"/>' : '<path d="M4 2.5v9l7.5-4.5z" fill="currentColor"/>'; $('kPlay').setAttribute('aria-label', playing ? 'Pause' : 'Play'); }
+function stop() { playing = false; clearTimer(); setPlayIcon(); }
+// The button shows pause only while something is happening: the voice speaking, or autoplay moving on.
+const busy = () => !!(run && run.audible) || (playing && (!!run || timer !== null));
+function togglePlay() { if (busy()) { stop(); stopRun(); setPlayIcon(); } else play(); }
+function setPlayIcon() { const playing = busy(); $('playIcon').innerHTML = playing ? '<path d="M3.5 2.5h2.5v9H3.5zM8 2.5h2.5v9H8z" fill="currentColor"/>' : '<path d="M4 2.5v9l7.5-4.5z" fill="currentColor"/>'; $('kPlay').setAttribute('aria-label', playing ? 'Pause' : 'Play'); }
 function setSoundUI() { $('kSound').textContent = muted ? 'Sound off' : 'Sound on'; $('kSound').setAttribute('aria-pressed', String(!muted)); $('kRate').textContent = rate === 1 ? '1×' : '1.25×'; }
-function gesture() { unlocked = true; $('start').hidden = true; }
+function gesture() { unlocked = true; $('start').hidden = true; const pz = document.querySelector('.poster'); if (pz) pz.remove(); }
 
 // Knobs belong to the reader until the model takes over.
 function onKnob() {
@@ -934,13 +998,25 @@ function onKnob() {
   renderChips(live); renderCase(live, steps[pos]); drawCurve(live); drawMapPanel(live);
 }
 $('kw').addEventListener('input', onKnob); $('kb').addEventListener('input', onKnob);
-$('bStart').addEventListener('click', () => { gesture(); muted = false; store.set('teach-muted', '0'); setSoundUI(); playing = true; setPlayIcon(); live = null; enter(); });
+$('knobs').addEventListener('input', coachTried);
+function startWith(withSound) { gesture(); muted = !withSound; store.set('teach-muted', muted ? '1' : '0'); setSoundUI(); playing = withSound; setPlayIcon(); live = null; enter(); }
+$('bStart').addEventListener('click', () => startWith(true));
+// Nothing moves or speaks until the reader chooses: the opening frame stands still under a start card.
+function poster() {
+  const s = steps[0]; showWorld(clone(worldAt(0)), null); buildStage(s); chrome(s); caption(s);
+  stageEl().querySelectorAll('.item').forEach(e => e.classList.add('on'));
+  const pz = document.createElement('div'); pz.className = 'poster';
+  pz.innerHTML = '<button class="btn go" type="button"><svg viewBox="0 0 14 14" width="14" height="14" aria-hidden="true"><path d="M4 2.5v9l7.5-4.5z" fill="currentColor"/></svg>Start with sound</button><button class="tbtn" type="button">Read without sound</button><p>A narrated walkthrough of gradient descent. Along the way you tune the model by hand and judge whether its calls on real biopsies are right; it waits for you each time.</p>';
+  const [go, read] = pz.querySelectorAll('button');
+  go.addEventListener('click', () => startWith(true)); read.addEventListener('click', () => startWith(false));
+  stageEl().appendChild(pz); setPlayIcon();
+}
 $('kSound').addEventListener('click', () => { gesture(); muted = !muted; store.set('teach-muted', muted ? '1' : '0'); setSoundUI(); if (run) { live = null; enter(); } });
 $('kReplay').addEventListener('click', () => { gesture(); live = null; enter(); });
 $('kRate').addEventListener('click', () => { rate = rate === 1 ? 1.25 : 1; store.set('teach-rate', String(rate)); setSoundUI(); if (run && run.el) run.el.playbackRate = rate; });
-$('kNext').addEventListener('click', () => { gesture(); stop(); next(steps[pos].ask); });
+$('kNext').addEventListener('click', () => { gesture(); next(steps[pos].ask); });
 $('kBack').addEventListener('click', () => { gesture(); back(); });
-$('kPlay').addEventListener('click', () => { gesture(); if (playing) { stop(); stopRun(); } else play(); });
+$('kPlay').addEventListener('click', () => { gesture(); togglePlay(); });
 $('scrub').addEventListener('input', e => { gesture(); stop(); live = null; pos = +e.target.value; enter(); });
 $('bRight').addEventListener('click', () => { gesture(); mark(true); });
 $('bWrong').addEventListener('click', () => { gesture(); mark(false); });
@@ -955,15 +1031,15 @@ $('stage').addEventListener('click', e => { const b = e.target.closest('[data-et
 document.addEventListener('keydown', e => {
   if (e.metaKey || e.ctrlKey || e.altKey || e.target instanceof HTMLInputElement) return;
   if (e.key === 'Escape') { $('detour').hidden = true; return; }
-  if (e.key === 'ArrowRight') { e.preventDefault(); gesture(); stop(); next(steps[pos].ask); }
+  if (e.key === 'ArrowRight') { e.preventDefault(); gesture(); next(steps[pos].ask); }
   else if (e.key === 'ArrowLeft') { e.preventDefault(); gesture(); back(); }
-  else if (e.key === ' ' && !(e.target instanceof HTMLButtonElement)) { e.preventDefault(); gesture(); if (playing) { stop(); stopRun(); } else play(); }
+  else if (e.key === ' ' && !(e.target instanceof HTMLButtonElement)) { e.preventDefault(); gesture(); togglePlay(); }
 });
 window.addEventListener('resize', () => { if (live) { drawCurve(live); drawMapPanel(live); const s = steps[pos]; if (['land', 'fog', 'three'].includes(s.stage)) stageMap(s); } });
 if (typeof ResizeObserver === 'function') new ResizeObserver(() => document.documentElement.style.setProperty('--guide-h', $('guide').offsetHeight + 'px')).observe($('guide'));
 if (window.innerWidth < 720) $('monitor').open = false;
 setSoundUI();
-enter();
+poster();
 </script>
 <footer style="max-width:1100px;margin:24px auto 0;padding:16px max(16px, env(safe-area-inset-left)) calc(24px + var(--guide-h, 0px));font:13px/1.6 system-ui, sans-serif;color:#6f665c;border-top:1px solid #d8cdbf">Data: Wisconsin Diagnostic Breast Cancer dataset, 569 biopsies, as shipped with scikit-learn. Feature: mean radius of the cell nuclei. Accuracy figures are on the same 569 biopsies the model learned from, so they show how well it fits, not how it would do on new patients.</footer>
 </body>
