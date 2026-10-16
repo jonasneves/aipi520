@@ -34,25 +34,26 @@
 html { background: var(--paper); -webkit-text-size-adjust: 100%; text-size-adjust: 100%; }
 body { margin: 0; background: var(--paper); color: var(--ink); font: 400 15px/24px var(--sans); -webkit-font-smoothing: antialiased; overflow-x: hidden; }
 button { font: inherit; color: inherit; }
-:focus-visible { outline: 2px solid var(--copper); outline-offset: 2px; }
+:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 .label { font: 600 11px/16px var(--sans); letter-spacing: 0.08em; text-transform: uppercase; color: var(--ink-3); }
 .page { width: min(100% - 32px, 1320px); margin: 0 auto; padding: 16px 0 24px; }
 header h1 { font: 400 32px/36px var(--serif); margin: 0 0 2px; letter-spacing: -0.01em; }
 header p { font: 400 16px/24px var(--serif); color: var(--ink-2); margin: 0 0 12px; }
 
-/* Monitor: a slim strip of wires, added as each idea arrives. */
+/* Values strip: every quantity introduced so far, for the biopsy on screen. */
 .monitor { background: var(--sheet); border: 1px solid var(--edge); border-radius: var(--r2); margin-bottom: 14px; }
 .monitor summary { list-style: none; cursor: pointer; display: flex; align-items: center; gap: 10px; padding: 6px 12px; }
 .monitor summary::-webkit-details-marker { display: none; }
-.monitor summary::before { content: "▸"; color: var(--ink-3); font-size: 11px; transition: transform 200ms var(--ease); }
+.monitor summary::before { content: "▸"; color: var(--ink-2); font-size: 14px; width: 16px; text-align: center; transition: transform 200ms var(--ease); }
 .monitor[open] summary::before { transform: rotate(90deg); }
+.monitor summary::after { content: "show"; margin-left: auto; font: 500 12px/18px var(--sans); color: var(--ink-2); border: 1px solid var(--rule); border-radius: var(--r1); padding: 2px 8px; } .monitor[open] summary::after { content: "hide"; }
 .monitor .empty { font: 400 12px/16px var(--sans); color: var(--ink-3); }
-.chips { display: flex; flex-wrap: wrap; gap: 4px 6px; padding: 0 12px 8px; }
+.chips { display: flex; flex-wrap: wrap; align-items: flex-start; align-content: flex-start; gap: 8px; padding: 6px 12px 10px; }
+.tb .label { text-transform: none; letter-spacing: 0; font: 500 12px/16px var(--sans); }
 .chip { white-space: nowrap; flex: none; display: inline-flex; align-items: baseline; gap: 6px; padding: 1px 8px; border: 1px solid var(--rule); border-radius: 12px; font: 400 12px/20px var(--sans); color: var(--ink-2); background: var(--sheet); }
 .chip b { font: 500 12px/20px var(--mono); color: var(--ink); font-variant-numeric: tabular-nums; }
 .chip i { font-style: normal; color: var(--ink-3); }
 .chip.pending { opacity: 0.45; }
-@media (min-width: 1100px) { .chips { flex-wrap: nowrap; overflow-x: auto; } }
 
 /* The desk */
 .desk { display: grid; grid-template-columns: minmax(0, 330px) minmax(0, 1fr) minmax(0, 330px); grid-template-areas: "left center right"; gap: 16px; align-items: start; }
@@ -74,26 +75,28 @@ header p { font: 400 16px/24px var(--serif); color: var(--ink-2); margin: 0 0 12
 .pbar { position: relative; height: 6px; border-radius: 3px; background: var(--wash); margin-top: 4px; overflow: hidden; max-width: 220px; }
 .pbar i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--copper); border-radius: 3px; }
 .pbar b { position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: var(--ink-3); }
+.pbar { overflow: visible; margin-bottom: 12px; } .pbar b::after { content: "0.5"; position: absolute; top: 9px; left: 50%; transform: translateX(-50%); font: 400 10px/1 var(--sans); color: var(--ink-3); }
 .idle { color: var(--ink-3); }
-.fb { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
+.fb { width: fit-content; max-width: 100%; display: flex; flex-wrap: wrap; gap: 8px; margin-top: 12px; }
 .btn { appearance: none; border: 1px solid var(--rule-strong); background: var(--sheet); border-radius: var(--r2); padding: 6px 12px; font: 500 14px/20px var(--sans); cursor: pointer; }
 .btn:hover:not(:disabled) { background: var(--wash); }
 .btn:disabled { opacity: 0.45; cursor: default; }
-.btn.pri { border-color: var(--copper); color: var(--copper); }
-.btn.pulse:not(:disabled) { border-color: var(--copper); box-shadow: 0 0 0 3px var(--copper-wash); }
+.btn.pri { border-color: var(--ink); color: var(--ink); }
+.btn.pulse:not(:disabled) { border-color: var(--ink-2); }
 .msg { margin: 10px 0 0; font: 400 13px/20px var(--sans); color: var(--ink-2); }
 .msg.warn { color: var(--red); }
-.mchip { display: inline-block; padding: 0 8px; border-radius: 10px; font: 500 12px/20px var(--sans); background: var(--copper-wash); color: var(--copper); }
+.dx1 { color: var(--plum); font-weight: 600; } .dx0 { color: var(--indigo); font-weight: 600; }
+.mchip { display: inline-block; padding: 0 8px; border-radius: 10px; font: 500 12px/20px var(--sans); background: var(--wash); color: var(--ink); }
 
 /* Curve + knobs */
 svg { display: block; width: 100%; height: auto; overflow: visible; }
 .ax { stroke: var(--rule-strong); stroke-width: 1; } .grid { stroke: var(--rule); stroke-width: 1; }
 .tick { font: 400 12px var(--sans); fill: var(--ink-3); }
 .halo { paint-order: stroke; stroke: var(--sheet); stroke-width: 3px; stroke-linejoin: round; }
-.cap { font: 600 11px var(--sans); fill: var(--ink-3); letter-spacing: 0.08em; text-transform: uppercase; }
+.cap { font: 500 12px var(--sans); fill: var(--ink-3); }
 .knobs { display: grid; grid-template-columns: max-content minmax(0, 1fr) 48px; gap: 4px 10px; align-items: center; margin-top: 8px; font: 400 13px/20px var(--sans); }
 .knobs label { color: var(--ink-2); white-space: nowrap; }
-.knobs input { width: 100%; accent-color: var(--copper); margin: 0; }
+.knobs input { width: 100%; accent-color: var(--ink-2); margin: 0; }
 .knobs output { font: 500 12px/20px var(--mono); text-align: right; font-variant-numeric: tabular-nums; }
 .knobnote { font: 400 12px/18px var(--sans); color: var(--ink-3); margin: 6px 0 0; }
 .grade { display: flex; flex-wrap: wrap; gap: 4px 18px; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--rule); }
@@ -151,8 +154,8 @@ svg .item.on { opacity: 1; }
 /* Guide */
 .guide { background: var(--sheet); border: 1px solid var(--edge); border-radius: var(--r3); box-shadow: var(--shadow-2); padding: 10px 14px; }
 .start { display: flex; flex-wrap: wrap; align-items: center; gap: 6px 12px; margin: 0 0 8px; font: 400 13px/20px var(--sans); color: var(--ink-3); }
-.start .btn, .poster .go { background: var(--copper); color: var(--sheet); border-color: var(--copper); }
-.start .btn:hover:not(:disabled), .poster .go:hover { background: #8a3f17; }
+.start .btn, .poster .go { background: var(--ink); color: var(--sheet); border-color: var(--ink); }
+.start .btn:hover:not(:disabled), .poster .go:hover { background: #3a332c; }
 .poster { position: absolute; inset: 0; z-index: 5; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 10px; padding: 24px; text-align: center; background: rgb(255 253 248 / 0.82); backdrop-filter: blur(2px); }
 .poster .go { display: inline-flex; align-items: center; gap: 8px; padding: 10px 20px; font: 600 16px/24px var(--sans); }
 .poster .go svg { width: 14px; height: 14px; flex: none; }
@@ -165,10 +168,10 @@ svg .item.on { opacity: 1; }
 .ib { appearance: none; width: 34px; height: 34px; flex: none; border-radius: 50%; border: 1px solid var(--rule-strong); background: var(--sheet); cursor: pointer; display: grid; place-items: center; padding: 0; }
 .ib:hover:not(:disabled) { background: var(--wash); }
 .ib:disabled { opacity: 0.4; cursor: default; }
-.ib.play { border-color: var(--copper); color: var(--copper); }
+.ib.play { border-color: var(--ink); color: var(--ink); }
 .ib svg { width: 14px; height: 14px; }
 .track { flex: 1; min-width: 60px; display: flex; align-items: center; }
-.track input { width: 100%; accent-color: var(--copper); margin: 0; }
+.track input { width: 100%; accent-color: var(--ink-2); margin: 0; }
 .stepn { font: 500 12px/16px var(--sans); color: var(--ink-3); white-space: nowrap; min-width: 52px; text-align: right; font-variant-numeric: tabular-nums; }
 .keys { font: 400 12px/16px var(--sans); color: var(--ink-3); margin-top: 6px; display: flex; justify-content: space-between; align-items: center; gap: 6px 12px; flex-wrap: wrap; }
 .aud { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
@@ -176,15 +179,16 @@ svg .item.on { opacity: 1; }
 .tbtn:hover { background: var(--wash); }
 .tbtn[aria-pressed="false"] { color: var(--ink-3); text-decoration: line-through; }
 kbd { font: 11px/1 var(--mono); padding: 2px 5px; border: 1px solid var(--rule); border-bottom-width: 2px; border-radius: var(--r1); background: var(--sheet); color: var(--ink-2); }
-.help { appearance: none; border: 1px solid var(--rule-strong); background: var(--sheet); width: 18px; height: 18px; border-radius: 50%; font: 600 11px/1 var(--sans); color: var(--ink-3); cursor: pointer; padding: 0; vertical-align: 2px; margin-left: 4px; }
-.help:hover { color: var(--copper); border-color: var(--copper); }
+.help { appearance: none; border: 1px solid var(--rule-strong); background: var(--sheet); width: 24px; height: 24px; border-radius: 50%; font: 600 12px/1 var(--sans); color: var(--ink-3); cursor: pointer; padding: 0; vertical-align: 2px; margin-left: 4px; }
+.help:hover { color: var(--ink); border-color: var(--ink); }
 .detour { position: fixed; z-index: 60; left: 50%; top: 50%; transform: translate(-50%, -50%); width: min(100% - 32px, 440px); background: var(--sheet); border: 1px solid var(--edge); border-radius: var(--r3); box-shadow: var(--shadow-3); padding: 16px 18px; }
 .detour h3 { font: 600 18px/24px var(--serif); margin: 0 0 6px; }
 .detour p { margin: 8px 0 0; font: 400 14px/22px var(--sans); color: var(--ink-2); }
 .detour .x { position: absolute; right: 10px; top: 8px; }
 
 /* Highlights: rust outline and soft fill on whatever the voice names; a pulse as it starts, a fade as it ends. */
-[data-ref]:not(svg *) { outline: 2px solid transparent; outline-offset: 3px; transition: outline-color 350ms var(--ease), background-color 350ms var(--ease); border-radius: 6px; }
+[data-ref]:not(svg *) { outline: 2px solid transparent; outline-offset: 3px; transition: outline-color 350ms var(--ease), background-color 350ms var(--ease); }
+:where([data-ref]:not(svg *)) { border-radius: 6px; }
 svg [data-ref] { transition: filter 350ms var(--ease); }
 @keyframes hlpulse { from { box-shadow: 0 0 0 0 rgb(166 77 29 / 0.45); } to { box-shadow: 0 0 0 10px rgb(166 77 29 / 0); } }
 
@@ -206,11 +210,10 @@ svg [data-ref] { transition: filter 350ms var(--ease); }
   .keys #phase { display: none; }
   .keys .k { display: none; }
 }
-.coach { position: fixed; z-index: 40; max-width: min(280px, calc(100vw - 32px)); background: var(--ink); color: var(--sheet); border-radius: var(--r2); padding: 9px 13px; font: 500 14px/20px var(--sans); box-shadow: var(--shadow-2); pointer-events: none; animation: coachIn 260ms var(--ease); }
-.coach::after { content: ""; position: absolute; left: var(--ax, 50%); width: 10px; height: 10px; background: inherit; transform: translateX(-50%) rotate(45deg); }
-.coach[data-side="above"]::after { bottom: -5px; } .coach[data-side="below"]::after { top: -5px; }
+.coach { margin: 8px 0 0; padding: 6px 10px; border-left: 3px solid var(--copper); background: var(--copper-wash); border-radius: 0 var(--r1) var(--r1) 0; font: 500 13px/20px var(--sans); color: var(--ink); animation: coachIn 260ms var(--ease); }
+#phase.go { color: var(--copper); font-weight: 600; }
 @keyframes coachIn { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: none; } }
-.coach-on { outline: 2px solid var(--copper) !important; outline-offset: 4px; border-radius: 8px; animation: coachRing 1.6s ease-out infinite; }
+.coach-on { outline: 2px solid var(--copper) !important; outline-offset: 4px; animation: coachRing 1.6s ease-out infinite; }
 @keyframes coachRing { 0% { box-shadow: 0 0 0 0 rgb(166 77 29 / 0.45); } 70%, 100% { box-shadow: 0 0 0 12px rgb(166 77 29 / 0); } }
 @media (prefers-reduced-motion: reduce) { * { transition: none !important; animation: none !important; } }
 </style>
@@ -223,7 +226,7 @@ svg [data-ref] { transition: filter 350ms var(--ease); }
   </header>
 
   <details class="monitor" id="monitor" open>
-    <summary><span class="label">Monitor</span><span class="empty" id="monEmpty">wires appear here as each idea arrives</span></summary>
+    <summary><span class="label">Values</span><span class="empty" id="monEmpty">each quantity appears here once it is introduced, with its value for the biopsy on screen</span></summary>
     <div class="chips" id="chips"></div>
   </details>
 
@@ -261,8 +264,8 @@ svg [data-ref] { transition: filter 350ms var(--ease); }
             </div>
             <p class="knobnote" id="knobNote"></p>
             <div class="grade">
-              <div data-ref="acc"><b id="gAcc"></b><span>right, of 569</span></div>
-              <div data-ref="loss" id="gJbox"><b id="gJ"></b><span id="gJl">surprise J (explained soon)</span></div>
+              <div data-ref="acc"><b id="gAcc"></b><span>called right, of 569</span></div>
+              <div data-ref="loss" id="gJbox"><b id="gJ"></b><span id="gJl">average surprise J (explained soon)</span></div>
             </div>
           </div>
         </div>
@@ -271,7 +274,6 @@ svg [data-ref] { transition: filter 350ms var(--ease); }
 
     <div class="col c-center">
       <section class="stage" id="stage" aria-live="polite"></section>
-      <div class="coach" id="coach" role="status" hidden></div>
       <nav class="guide" id="guide" aria-label="Guide">
         <div class="start" id="start" hidden>
           <button class="btn" id="bStart" type="button">Turn sound on</button>
@@ -296,12 +298,12 @@ svg [data-ref] { transition: filter 350ms var(--ease); }
 
     <div class="col c-right">
       <section class="win" id="wMap" aria-label="Map" hidden>
-        <div class="tb"><div class="tt"><span class="dot"></span>Map</div><span class="label" style="text-transform:none;letter-spacing:0">grade J for every w, b</span></div>
+        <div class="tb"><div class="tt"><span class="dot"></span>Map</div><span class="label">average surprise J for every w, b</span></div>
         <div class="wc">
           <div class="mapbox" id="mapPanel" data-ref="map"></div>
           <div class="stats">
-            <div><b id="mJ"></b><span>surprise J</span></div>
-            <div data-ref="acc"><b id="mAcc"></b><span>right, of 569</span></div>
+            <div><b id="mJ"></b><span>average surprise J</span></div>
+            <div data-ref="acc"><b id="mAcc"></b><span>called right, of 569</span></div>
             <div data-ref="flip"><b id="mFlip"></b><span>flip radius</span></div>
           </div>
           <p class="callback" id="callback" hidden></p>
@@ -353,6 +355,7 @@ const fs = (v, d) => (v > 0 ? '+' : '') + f(v, d);
 function fp(p) { if (p > 0.999) { const dd = Math.min(8, Math.ceil(-Math.log10(1 - p)) + 1); return p.toFixed(dd); } return p.toFixed(2); }
 const pct = v => (v * 100).toFixed(1) + '%';
 const word = y => y ? 'malignant' : 'benign';
+const dx = y => `<span class="dx${y}">${word(y)}</span>`;
 const $ = id => document.getElementById(id);
 function tex(src) { if (window.katex) { try { return katex.renderToString(src, { throwOnError: false, trust: true, strict: 'ignore' }); } catch (e) {} } return src; }
 // \htmlClass{r-ref}{…} in a formula becomes a highlightable part with data-ref="ref".
@@ -428,10 +431,11 @@ function caseView(w) {
 }
 const LEVELS = { none: 0, x: 1, live: 2, ask: 2, y: 3, upd: 4 };
 const CHIP = {
-  x: ['x', 'radius', c => f(c.x)], xt: ['x̃', 'in sd', c => fs(c.xt)], w: ['w', 'sensitivity', (c, w) => f(modelWB(w)[0])], b: ['b', 'baseline', (c, w) => f(modelWB(w)[1])],
-  z: ['z', 'score', c => f(c.z)], p: ['p', 'probability', c => c.p > 0.999 ? '>0.999' : fp(c.p)], L: ['L', 'surprise', c => c.L < 0.001 ? '<0.001' : f(c.L)], err: ['y−p', 'error', c => Math.abs(c.err) < 0.001 ? (c.err > 0 ? '+' : '−') + '<0.001' : fs(c.err)],
-  dw: ['Δw', 'step', c => Math.abs(c.dw) < 0.001 ? '≈0' : fs(c.dw, 3)], db: ['Δb', 'step', c => Math.abs(c.db) < 0.001 ? '≈0' : fs(c.db, 3)], eta: ['η', 'step size', () => '0.5'],
+  x: ['x', 'radius', c => f(c.x)], xt: ['x̃', 'in sd', c => fs(c.xt)], w: ['w', 'sensitivity', (c, w) => wbChip(c, w, 0)], b: ['b', 'baseline', (c, w) => wbChip(c, w, 1)],
+  z: ['z', 'score', c => f(c.z)], p: ['p', 'probability', c => c.p > 0.999 ? '>0.999' : fp(c.p)], L: ['L', 'surprise, this case', c => c.L < 0.001 ? '<0.001' : f(c.L)], err: ['y−p', 'error', c => Math.abs(c.err) < 0.001 ? (c.err > 0 ? '+' : '−') + '<0.001' : fs(c.err)],
+  dw: ['Δw', 'change', c => fs(c.dw, 3)], db: ['Δb', 'change', c => fs(c.db, 3)], eta: ['η', 'step size', () => '0.5'],
 };
+function wbChip(c, w, i) { const now = modelWB(w)[i], was = i ? c.b : c.w; return w.level === 'upd' && was !== undefined && Math.abs(was - now) > 0.0005 ? `${f(was)} → ${f(now)}` : f(now); }
 const CHIPREF = { w: 'w step', b: 'b step', dw: 'dw step', db: 'db step', L: 'L', err: 'err', eta: 'eta' };
 const NEED = { x: 1, xt: 1, w: 0, b: 0, z: 2, p: 2, L: 3, err: 3, dw: 4, db: 4, eta: 0 };
 function renderChips(w) {
@@ -440,31 +444,33 @@ function renderChips(w) {
   box.innerHTML = '';
   for (const id of ['x', 'xt', 'w', 'b', 'z', 'p', 'L', 'err', 'dw', 'db', 'eta']) {
     if (!w.chips.includes(id)) continue;
-    const [sym, gloss, val] = CHIP[id], wb = id === 'w' || id === 'b', show = wb || (w.level !== 'none' && (lv >= NEED[id] || w.level === 'live'));
+    const [sym, gloss, val] = CHIP[id], wb = id === 'w' || id === 'b', show = wb || id === 'eta' || (w.level !== 'none' && (lv >= NEED[id] || w.level === 'live'));
     const s = document.createElement('span'); s.className = 'chip'; s.dataset.ref = CHIPREF[id] || id; s.dataset.chip = id;
     s.innerHTML = `${sym} <i>${gloss}</i> <b>${show ? val(c, w) : '–'}</b>`; if (!show) s.classList.add('pending');
     box.appendChild(s);
   }
+  box.style.minHeight = ''; const h = box.offsetHeight; chipsH = w.chips.length ? Math.max(chipsH, h) : 0; box.style.minHeight = chipsH + 'px';
 }
+let chipsH = 0;
 function renderCase(w, s) {
   $('wCase').hidden = !w.panels.includes('case');
   const c = caseView(w), lv = LEVELS[w.level];
-  $('caseNo').textContent = w.level === 'none' ? (w.n >= N ? `All ${N} biopsies taught` : `${w.n} biopsies taught`) : w.n === null ? 'An example biopsy' : `Biopsy ${c.k + 1} of ${N}`;
+  $('caseNo').textContent = w.level === 'none' ? (w.n >= N ? `All ${N} biopsies taught` : `${w.n} biopsies taught`) : w.n === null || c.k > w.n ? 'An example biopsy' : `Biopsy ${c.k + 1} of ${N}`;
   $('caseR').innerHTML = lv >= 1 ? `${f(c.x)}<small>mean radius</small>` : '';
   $('wCase').querySelector('.rows2').hidden = lv === 0;
   const seen = lv >= 2;
-  $('callTxt').textContent = seen ? `${word(c.call)} · p = ${fp(c.p)}` : '·';
+  $('callTxt').innerHTML = seen ? `${dx(c.call)} · p = ${fp(c.p)}` : '·';
   $('callTxt').className = seen ? '' : 'idle';
   $('pfill').style.width = seen ? (c.p * 100).toFixed(1) + '%' : '0%';
-  $('truth').textContent = lv >= 2 ? word(c.y) : '·';
-  $('mark').innerHTML = lv >= 3 ? `<span class="mchip">${c.call === c.y ? 'right' : 'wrong'}</span> so y = ${c.y}` : '<span class="idle">·</span>';
+  $('truth').innerHTML = lv >= 3 ? `${dx(c.y)} (y = ${c.y})` : lv >= 2 ? dx(c.y) : '·';
+  $('mark').innerHTML = lv >= 3 ? `<span class="mchip">call ${c.call === c.y ? 'right' : 'wrong'}</span>` : '<span class="idle">·</span>';
   const asking = s && s.ask && lv === 2;
   $('fbRow').hidden = !(s && (s.ask || lv >= 3)) || w.level === 'none';
   for (const b of [$('bRight'), $('bWrong')]) { b.disabled = !asking; b.classList.toggle('pulse', !!asking); }
-  $('freeRow').hidden = pos < YOUR_TURN;
+  $('freeRow').hidden = pos < YOUR_TURN || w.n >= N;
   $('bNext').disabled = w.n >= N; $('bAll').disabled = w.n >= N;
   $('bAll').textContent = w.n >= N ? 'All 569 taught' : `Run the rest (${N - (w.n || 0)})`;
-  $('caseTag').textContent = w.n === null ? 'example' : pos >= YOUR_TURN ? 'you are teaching' : 'guided';
+  $('caseTag').textContent = w.n === null || c.k > w.n ? '' : pos >= YOUR_TURN ? (w.n >= N ? 'done' : 'your turn') : 'guided';
 }
 
 // ---- Curve panel: the cases by radius, the model's line or S, and the knobs.
@@ -481,8 +487,8 @@ function drawCurve(w, wb) {
   for (const r of [10, 15, 20, 25]) el('text', { x: cx(r), y: Bt + 14, 'text-anchor': 'middle', class: 'tick' }, svg).textContent = r;
   el('text', { x: R, y: Bt + 28, 'text-anchor': 'end', class: 'cap' }, svg).textContent = 'radius';
   if (w.curve.sd) for (let s = -2; s <= 4; s++) { const r = MU + s * SD; if (r < 6 || r > 30) continue; el('line', { x1: cx(r), x2: cx(r), y1: T - 8, y2: T - 4, class: 'ax' }, svg); el('text', { x: cx(r), y: T - 12, 'text-anchor': 'middle', class: 'tick' }, svg).textContent = (s > 0 ? '+' : '') + M(String(s)); }
-  if (w.curve.dots) { const g = el('g', { fill: 'var(--ink-3)', 'fill-opacity': 0.35, 'data-ref': 'dots' }, svg); for (let i = 0; i < N; i++) el('circle', { cx: cx(DATA.r[i]).toFixed(1), cy: cy(Yv[i] ? 0.96 + jit(i) * 0.06 : 0.04 + jit(i) * 0.06).toFixed(1), r: 1.8 }, g); }
-  $('curveTag').textContent = w.curve.mode === 'line' ? 'score by radius' : w.curve.mode === 'S' ? 'p(malignant) by radius' : 'radius';
+  if (w.curve.dots && w.curve.mode !== 'line') { const g = el('g', { 'fill-opacity': 0.4, 'data-ref': 'dots' }, svg); for (let i = 0; i < N; i++) el('circle', { fill: Yv[i] ? 'var(--plum)' : 'var(--indigo)', cx: cx(DATA.r[i]).toFixed(1), cy: cy(Yv[i] ? 0.96 + jit(i) * 0.06 : 0.04 + jit(i) * 0.06).toFixed(1), r: 1.8 }, g); }
+  $('curveTag').textContent = w.curve.mode === 'line' ? 'score z by radius' : w.curve.mode === 'S' ? 'p(malignant) by radius' : '';
   const [mw, mb] = wb || modelWB(w);
   if (w.curve.mode !== 'none') {
     let d = '';
@@ -493,8 +499,7 @@ function drawCurve(w, wb) {
     if (w.curve.mode === 'S' && fr >= 6 && fr <= 30) {
       const g = el('g', { 'data-ref': 'flip' }, svg);
       el('line', { x1: cx(fr), x2: cx(fr), y1: cy(0.5), y2: Bt, stroke: 'var(--copper)', 'stroke-dasharray': '2 3' }, g);
-      el('circle', { cx: cx(fr), cy: cy(0.5), r: 3.5, fill: 'var(--sheet)', stroke: 'var(--copper)', 'stroke-width': 1.5 }, g);
-      el('text', { x: cx(fr) + 6, y: cy(0.5) + 16, class: 'tick', style: 'fill:var(--copper)' }, g).textContent = 'flips at ' + f(fr);
+      el('text', { x: cx(fr) + 6, y: Bt - 22, class: 'tick halo', style: 'fill:var(--copper)' }, g).textContent = 'flip radius ' + f(fr);
     }
   }
   if (LEVELS[w.level] >= 1 && w.curve.mode !== 'none') {
@@ -503,7 +508,7 @@ function drawCurve(w, wb) {
     if (w.curve.mode === 'S' && LEVELS[w.level] >= 2) {
       const before = w.level === 'upd';
       el('circle', { cx: cx(c.x), cy: cy(c.p), r: 4.5, fill: before ? 'var(--sheet)' : 'var(--copper)', stroke: 'var(--copper)', 'stroke-width': 1.5, 'data-ref': 'p' }, svg);
-      if (before) el('text', { x: cx(c.x) + 7, y: cy(c.p) + 4, class: 'tick halo' }, svg).textContent = 'p before the step';
+      if (before) $('curveTag').textContent = 'p(malignant) by radius · ○ p before this step';
     }
   }
   // knobs
@@ -514,11 +519,11 @@ function drawCurve(w, wb) {
   $('knobNote').textContent = !handsOn ? 'The model turns the knobs now, one footstep per case.' : w.curve.mode === 'S' ? 'Drag the knobs. Fit the S to the dots.' : 'Drag the knobs: w tilts the line, b slides it.';
   const st = stat(mw, mb);
   $('gAcc').textContent = pct(st.acc); $('gJ').textContent = st.J.toFixed(3);
-  $('gJl').textContent = w.grade ? 'surprise J (lower is better)' : 'surprise J (explained soon)';
+  $('gJl').textContent = w.grade ? 'average surprise J (lower is better)' : 'average surprise J (explained soon)';
   $('gJbox').classList.toggle('soon', !w.grade);
 }
 
-// ---- Map: the grade J over a grid of (w, b), drawn as contour bands.
+// ---- Map: the average surprise J over a grid of (w, b), drawn as contour bands.
 const LEVELSJ = [0.29, 0.295, 0.305, 0.32, 0.35, 0.4, 0.47, 0.56, 0.69, 0.85, 1.05, 1.35, 1.8, 2.5, 3.5, 5];
 const fieldCache = new Map();
 function field(bd, nx, ny) {
@@ -551,7 +556,7 @@ function paintField(cv, bd) {
 // Draw a map into a .mapbox host. opts: bounds, paths [{pts, n, color, ref}], hiker, you, bottom, start, fog, arrow, items (stage items).
 function drawMap(host, opts) {
   const bd = opts.bounds;
-  const Wd = Math.max(240, Math.round(host.getBoundingClientRect().width) || 320), H = Math.round(Wd * (opts.aspect || 0.72));
+  const Wd = Math.max(240, host.clientWidth || 320), H = Math.round(Wd * (opts.aspect || 0.72));
   host.style.height = H + 'px';
   let cv = host.querySelector('canvas'), svg = host.querySelector('svg');
   if (!cv) { cv = document.createElement('canvas'); host.appendChild(cv); }
@@ -567,15 +572,20 @@ function drawMap(host, opts) {
   el('line', { x1: 0, x2: Wd, y1: my(0), y2: my(0), stroke: 'var(--rule-strong)', 'stroke-dasharray': '2 4' }, svg);
   const g = (attrs) => el('g', attrs, svg);
   if (opts.bottom) { const b = g({ 'data-ref': 'bottom', class: opts.items ? 'item' : '', 'data-item': opts.items ? 'bottom' : undefined }); el('path', { d: `M${mx(BEST.w)} ${my(BEST.b) - 7}l2 5h5l-4 3 2 6-5-4-5 4 2-6-4-3h5z`, fill: 'var(--green)' }, b); el('text', { x: mx(BEST.w) + 9, y: my(BEST.b) + 14, class: 'tick halo', style: 'fill:var(--green)' }, b).textContent = 'bottom'; }
-  if (opts.start) { el('circle', { cx: mx(0), cy: my(0), r: 3, fill: 'var(--ink-3)' }, svg); el('text', { x: mx(0) - 6, y: my(0) - 7, 'text-anchor': 'end', class: 'tick halo' }, svg).textContent = 'start'; }
-  const hf = handFit();
-  if (opts.you && hf && inside(hf.w, hf.b)) { const y = g({ 'data-ref': 'you', class: opts.items ? 'item' : '', 'data-item': opts.items ? 'you' : undefined }); el('circle', { cx: mx(hf.w), cy: my(hf.b), r: 6, fill: 'none', stroke: 'var(--indigo)', 'stroke-width': 2 }, y); const near = Math.hypot(mx(hf.w) - mx(0), my(hf.b) - my(0)) < 40; el('text', { x: mx(hf.w) + 9, y: my(hf.b) + (near ? 18 : -6), class: 'tick halo', style: 'fill:var(--indigo)' }, y).textContent = 'your fit'; }
+  // The voice says "your fit is here" whether or not the reader turned the knobs, so there is always a marker.
+  const hf0 = handFit(), hf = hf0 ? { w: Math.max(bd[0], Math.min(bd[1], hf0.w)), b: Math.max(bd[2], Math.min(bd[3], hf0.b)) } : { w: 0, b: 0 };
+  // Untouched knobs leave the reader's fit at the start, so the start point carries both names.
+  const youAtStart = opts.you && !hf0;
+  if (opts.start) { const sg = youAtStart ? g({ 'data-ref': 'you', class: opts.items ? 'item' : '', 'data-item': opts.items ? 'you' : undefined }) : svg; el('circle', { cx: mx(0), cy: my(0), r: 3, fill: 'var(--ink-3)' }, sg); const sl = youAtStart ? 'start = your fit' : 'start', roomL = mx(0) - 6 - sl.length * 6.2 > 2; el('text', { x: mx(0) + (roomL ? -6 : 6), y: my(0) - 7, 'text-anchor': roomL ? 'end' : 'start', class: 'tick halo' }, sg).textContent = sl; }
+  if (opts.you && hf0) { const y = g({ 'data-ref': 'you', class: opts.items ? 'item' : '', 'data-item': opts.items ? 'you' : undefined }); el('circle', { cx: mx(hf.w), cy: my(hf.b), r: 6, fill: 'none', stroke: 'var(--ink)', 'stroke-width': 2 }, y); const near = Math.hypot(mx(hf.w) - mx(0), my(hf.b) - my(0)) < 40; el('text', { x: mx(hf.w) + 9, y: my(hf.b) + (near ? 18 : -6), class: 'tick halo', style: 'fill:var(--ink)' }, y).textContent = 'your fit'; }
   for (const p of opts.paths || []) {
     const n = Math.min(p.n, p.pts.length - 1); if (n <= 0) continue;
     let d = ''; for (let k = 0; k <= n; k++) { const [w, b] = p.pts[k]; d += (d ? 'L' : 'M') + mx(Math.max(bd[0] - 1, Math.min(bd[1] + 1, w))).toFixed(1) + ' ' + my(Math.max(bd[2] - 1, Math.min(bd[3] + 1, b))).toFixed(1); }
-    el('path', { d, fill: 'none', stroke: p.color || 'var(--copper)', 'stroke-width': p.width || 1.6, 'stroke-linejoin': 'round', 'data-ref': p.ref || 'step', 'stroke-opacity': p.opacity ?? 0.9 }, svg);
+    el('path', { d, fill: 'none', stroke: p.color || 'var(--copper)', 'stroke-width': p.width || 1.6, 'stroke-linejoin': 'round', 'data-ref': p.ref || 'step', 'stroke-opacity': p.opacity ?? 0.9, 'stroke-dasharray': p.dash, 'stroke-linecap': p.dash ? 'round' : undefined }, svg);
     if (n <= 60 && !p.opacity) for (let k = 1; k <= n; k++) el('circle', { cx: mx(p.pts[k][0]), cy: my(p.pts[k][1]), r: 1.8, fill: p.color || 'var(--copper)' }, svg);
   }
+  // Landmarks stay readable above the paths that run through them.
+  svg.querySelectorAll(':scope > g[data-ref="bottom"], :scope > g[data-ref="you"]').forEach(k => svg.appendChild(k));
   if (opts.hiker) {
     const [w, b] = opts.hiker, hx = mx(w), hy = my(b);
     if (opts.fog) {
@@ -613,7 +623,7 @@ function drawMapPanel(w, nShow) {
   const cb = $('callback');
   const hf = handFit();
   cb.hidden = !(n >= 4);
-  if (!cb.hidden) cb.textContent = (hf ? `Your best hand-fit scored J = ${hf.J.toFixed(3)} (${pct(hf.acc)} right). ` : 'You left the knobs untouched. ') + `The footsteps ${n >= N ? 'reached' : 'now reach'} J = ${st.J.toFixed(3)} (${pct(st.acc)}).`;
+  if (!cb.hidden) cb.textContent = (hf ? `Your best fit by hand scored J = ${hf.J.toFixed(3)} (${pct(hf.acc)} right). ` : 'You left the knobs untouched. ') + `The footsteps ${n >= N ? 'reached' : 'now reach'} J = ${st.J.toFixed(3)} (${pct(st.acc)}).`;
 }
 
 // ---- Animation of the model between two footstep counts (curve, map and case follow).
@@ -660,7 +670,7 @@ function dotsSVG(o = {}) {
     s += `<g class="item" data-item="ruler" data-ref="ruler">`;
     for (let k = -2; k <= 4; k++) { const r = MU + k * SD; if (r < 6 || r > 30) continue; s += `<line x1="${cx(r)}" x2="${cx(r)}" y1="${H - 30}" y2="${H - 40}" stroke="var(--copper)" stroke-width="2"/><text x="${cx(r)}" y="${H - 44}" text-anchor="middle" class="tick" style="fill:var(--copper)">${k > 0 ? '+' : ''}${M(String(k))}</text>`; }
     s += `<line x1="${cx(MU)}" x2="${cx(MU + SD)}" y1="${H - 35}" y2="${H - 35}" stroke="var(--copper)" stroke-width="3"/></g>`;
-    s += `<g class="item" data-item="pin" data-ref="xt"><line x1="${cx(17.85)}" x2="${cx(17.85)}" y1="22" y2="${H - 58}" stroke="var(--plum)" stroke-width="2"/><circle cx="${cx(17.85)}" cy="${H - 30}" r="4" fill="var(--plum)"/><text x="${cx(17.85) + 6}" y="34" class="tick" style="fill:var(--plum)">this biopsy: x̃ = +1.06</text></g>`;
+    s += `<g class="item" data-item="pin" data-ref="xt"><line x1="${cx(17.85)}" x2="${cx(17.85)}" y1="22" y2="${H - 58}" stroke="var(--ink)" stroke-width="2"/><circle cx="${cx(17.85)}" cy="${H - 30}" r="4" fill="var(--ink)"/><text x="${cx(17.85) + 6}" y="34" class="tick" style="fill:var(--ink)">this biopsy: x̃ = +1.06</text></g>`;
   }
   return s + '</svg>';
 }
@@ -669,7 +679,7 @@ function plotSVG(fn, o) {
   const cx = v => L + (v - o.x0) / (o.x1 - o.x0) * (R - L), cy = v => Bt - (v - o.y0) / (o.y1 - o.y0) * (Bt - T);
   let d = ''; for (let i = 0; i <= 300; i++) { const v = o.x0 + (o.x1 - o.x0) * i / 300; d += (d ? 'L' : 'M') + cx(v).toFixed(1) + ' ' + cy(fn(v)).toFixed(1); }
   let s = `<svg viewBox="0 0 ${Wd} ${H}"><line x1="${L}" x2="${R}" y1="${Bt}" y2="${Bt}" class="ax"/><line x1="${L}" x2="${L}" y1="${T}" y2="${Bt}" class="ax"/>`;
-  (o.yt || []).forEach(v => { s += `<text x="${L - 6}" y="${cy(v) + 4}" text-anchor="end" class="tick">${o.yf ? o.yf(v) : v}</text>`; });
+  (o.yt || []).forEach(v => { s += `<text x="${L - 6}" y="${cy(v) + 4}" text-anchor="end" class="tick">${o.yf ? o.yf(v) : M(String(v))}</text>`; });
   (o.xt || []).forEach(v => { s += `<text x="${cx(v)}" y="${Bt + 16}" text-anchor="middle" class="tick">${M(String(v))}</text>`; });
   s += `<text x="${R}" y="${T + 8}" text-anchor="end" class="cap">${o.label}</text><path d="${d}" fill="none" stroke="${o.color || 'var(--copper)'}" stroke-width="2.5" ${o.step ? '' : 'stroke-linejoin="round"'}/>`;
   return s + (o.extra ? o.extra(cx, cy) : '') + '</svg>';
@@ -679,28 +689,28 @@ const SCENES = {
     item('<p class="s-title">Malignant or benign?</p>', 'q') + item(dotsSVG(), 'dots', 'dots'),
   ruler: () => item(dotsSVG({ spread: true, ruler: true, h: 190 }), 'spread') +
     item(`<div class="s-tex" data-dockfrom="xt"></div><p class="s-note">x̃ counts typical distances (sd<button class="help" data-detour="sd" aria-label="What is sd?">?</button> = 3.52) from the average · <button class="tbtn" data-detour="rescale">why rescale?</button></p>`, 'xtf'),
-  knobs: () => item(`<div class="s-tex" data-tex="z = \\htmlClass{r-w}{w}\\cdot\\tilde x + \\htmlClass{r-b}{b}"></div><div id="miniLine"></div><p class="s-note">demo: score z against x̃ as w turns, then b</p>`, 'zf') +
-    `<div class="s-row" data-dockfrom="knobs">` + item(dialHTML('w', 'sensitivity'), 'kw', 'w') + item(dialHTML('b', 'baseline lean'), 'kb', 'b') + `</div>`,
+  knobs: () => item(`<div class="s-tex" data-tex="z = \\htmlClass{r-w}{w}\\cdot\\tilde x + \\htmlClass{r-b}{b}"></div><div id="miniLine"></div><p class="s-note">the score z against x̃ while w turns, then b</p>`, 'zf') +
+    `<div class="s-row" data-dockfrom="knobs">` + item(dialHTML('w', 'sensitivity'), 'kw', 'w') + item(dialHTML('b', 'baseline'), 'kb', 'b') + `</div>`,
   dimmer: () => item(`<div class="s-row" style="align-items:center"><svg viewBox="0 0 300 80" style="max-width:300px"><line x1="10" x2="290" y1="40" y2="40" class="ax"/><text x="10" y="70" class="tick">−6</text><text x="150" y="70" text-anchor="middle" class="tick">0</text><text x="290" y="70" text-anchor="end" class="tick">+6</text><text x="10" y="18" class="cap">score z</text><circle id="zDot" cx="150" cy="40" r="7" fill="var(--copper)"/></svg>
     <div data-ref="bulb" style="text-align:center;padding:4px 8px"><svg viewBox="0 0 80 90" style="width:80px"><circle id="bulb" cx="40" cy="38" r="28" fill="var(--copper)" fill-opacity="0.5" stroke="var(--ink-3)"/><rect x="30" y="68" width="20" height="14" rx="3" fill="var(--rule-strong)"/></svg><div class="s-note" id="bulbV">p = 0.50</div></div></div>`, 'dimmer') +
     item(`<div class="s-tex" data-dockfrom="p" data-tex="\\htmlClass{r-p}{p} = \\sigma(z) = \\dfrac{1}{1 + e^{-z}}"></div><p class="s-note">the sigmoid <button class="help" data-detour="e" aria-label="What is e?">?</button></p>`, 'sig'),
-  count: () => item(`<p class="s-note"><b>% right</b> as you turn w (b held at −0.64)</p>` + plotSVG(w => accOf(w, BEST.b) * 100, { x0: 0, x1: 6, y0: 55, y1: 92, xt: [0, 2, 4, 6], yt: [60, 70, 80, 90], yf: v => v + '%', label: 'w', step: true }), 'stairs', 'stairs') +
+  count: () => item(`<p class="s-note"><b>% called right</b> as w turns (b held at its best value, −0.64)</p>` + plotSVG(w => accOf(w, BEST.b) * 100, { x0: 0, x1: 6, y0: 55, y1: 92, xt: [0, 2, 4, 6], yt: [60, 70, 80, 90], yf: v => v + '%', label: 'w', step: true }), 'stairs', 'stairs') +
     item(`<div class="s-row"><div class="s-card"><span class="label">near miss</span><div class="s-big" style="font-size:28px">p = 0.51</div><span class="s-note">wrong: 1 mistake</span></div><div class="s-card"><span class="label">wild miss</span><div class="s-big" style="font-size:28px">p = 0.99</div><span class="s-note">wrong: 1 mistake</span></div></div>`, 'same', 'same'),
   surprise: () => item(`<p class="s-note">The truth is benign. The model gave benign this probability:</p><div class="meter">${[['m1', 0.99], ['m2', 0.5], ['m3', 0.08]].map(([id, q]) => `<div><span data-ref="${id}">${q}</span><i style="transform:scaleX(${(-Math.log(q) / 2.6).toFixed(3)})"></i><b data-ref="${id}">${(-Math.log(q)).toFixed(2)}</b></div>`).join('')}</div><p class="s-note">surprise</p>`, 'meter') +
     item(`<div class="s-tex" data-dockfrom="J" data-tex="\\begin{aligned}\\htmlClass{r-L}{L} &= -\\ln(\\text{prob. given to the truth})\\\\ \\htmlClass{r-loss}{J} &= \\text{average of } L \\text{ over all 569}\\end{aligned}"></div><p class="s-note"><button class="help" data-detour="ln" aria-label="What is ln?">?</button></p>`, 'Lf') +
-    item(plotSVG(w => Jof(w, BEST.b), { x0: 0, x1: 6, y0: 0.25, y1: 0.75, xt: [0, 2, 4, 6], yt: [0.3, 0.5, 0.7], label: 'J as you turn w: smooth, with a bottom', h: 150 }), 'bowl', 'loss'),
-  land: () => `<div class="mapbox item" data-item="map" data-ref="map" data-dockfrom="map" id="stageMap"></div><p class="s-note item" data-item="mapnote">Each point is one setting of (w, b). Its shade is its grade J: lighter is lower.</p>`,
+    item(plotSVG(w => Jof(w, BEST.b), { x0: 0, x1: 6, y0: 0.25, y1: 0.75, xt: [0, 2, 4, 6], yt: [0.3, 0.5, 0.7], label: 'J as w turns (same b): smooth, with a bottom', h: 150 }), 'bowl', 'loss'),
+  land: () => `<div class="mapbox item" data-item="map" data-ref="map" data-dockfrom="map" id="stageMap"></div><p class="s-note item" data-item="mapnote">Each point is one setting of (w, b). Its shade is its average surprise J: lighter is lower.</p>`,
   fog: () => `<div class="mapbox item" data-item="fog" id="stageMap"></div>` + item('<p class="s-note">One case gives a rough slope, fast. All 569 give the true slope, slowly.</p>', 'one'),
-  ask: () => { const c = caseView(live); return item(`<div class="s-card"><span class="label">Biopsy ${c.k + 1}${live.n !== null ? '' : ''}</span><div class="s-big" data-ref="x">${f(c.x)}</div><div class="s-note" data-ref="p call">model: <b>${word(c.call)}</b>, p = ${fp(c.p)}</div><div class="s-note" data-ref="truth">pathology: <b>${word(c.y)}</b></div></div>`, 'askcard') + item('<p class="s-note">Mark the call in the Case panel (→ marks it for you).</p>', 'askhint'); },
+  ask: () => { const c = caseView(live); return item(`<div class="s-card"><span class="label">Biopsy ${c.k + 1}${live.n !== null ? '' : ''}</span><div class="s-big" data-ref="x">${f(c.x)}</div><div class="s-note" data-ref="p call">model: ${dx(c.call)}, p = ${fp(c.p)}</div><div class="s-note" data-ref="truth">pathology: ${dx(c.y)}</div></div>`, 'askcard') + item('<p class="s-note">Mark the call in the Case panel.</p>', 'askhint'); },
   rule: () => item(`<div class="s-tex" data-tex="\\begin{aligned} w &\\leftarrow w + \\htmlClass{r-eta}{\\eta}\\cdot\\htmlClass{r-err}{(y-p)}\\cdot\\htmlClass{r-xt}{\\tilde x}\\\\ b &\\leftarrow b + \\htmlClass{r-eta}{\\eta}\\cdot\\htmlClass{r-err}{(y-p)}\\end{aligned}"></div>`, 'rule') +
     `<div class="factors">` + item('<b>y − p = −0.50</b>which way, how far', 'f1', 'err', 'factor') + item('<b>x̃ = −1.16</b>blame', 'f2', 'xt', 'factor') + item('<b>η = 0.5</b>how bold (step size)', 'f3', 'eta', 'factor') + `</div>` +
-    item(`<div class="s-card" style="padding:8px 14px"><span class="label">what if: biopsy #326, radius 14.11</span><span class="s-note">x̃ = −0.005, so Δw = +0.001: w barely moves; only b would.</span></div>`, 'ghost', 'ghost') +
-    item(`<div class="s-tex" data-dockfrom="dw" data-tex="\\Delta w = 0.5\\cdot(-0.5)\\cdot(-1.16) = +0.29 \\qquad \\Delta b = 0.5\\cdot(-0.5) = -0.25"></div>`, 'nums'),
-  step: () => { const c = CASES[live.caseK]; const len = Math.hypot(c.dw, c.db); return `<div class="mapbox" id="stageLive" data-ref="map"></div>` + item(`<div class="s-card" style="padding:8px 16px" data-ref="step"><span class="label">footstep ${c.k + 1} · radius ${f(c.x)}, ${word(c.y)}</span><div class="s-tex" data-tex="\\Delta w = ${f(c.dw, 3).replace('−', '-')}\\qquad \\Delta b = ${f(c.db, 3).replace('−', '-')}"></div><span class="s-note">error y − p = ${fs(c.err)} · stride ${f(len, 3)}</span></div>`, 'stepbox'); },
+    item(`<div class="s-card" style="padding:8px 14px"><span class="label">what if: a biopsy at the average radius, 14.11</span><span class="s-note">x̃ = −0.005, so Δw = +0.001: w barely moves; only b would.</span></div>`, 'ghost', 'ghost') +
+    item(`<div class="s-tex" data-dockfrom="dw" data-tex="\\begin{aligned}\\Delta w &= 0.5\\cdot(-0.5)\\cdot(-1.16) = +0.29\\\\ \\Delta b &= 0.5\\cdot(-0.5) = -0.25\\end{aligned}"></div>`, 'nums'),
+  step: () => { const c = CASES[live.caseK]; const len = Math.hypot(c.dw, c.db); return `<div class="mapbox" id="stageLive" data-ref="map"></div>` + item(`<div class="s-card" style="padding:8px 16px" data-ref="step"><span class="label">footstep ${c.k + 1} · radius ${f(c.x)}, ${word(c.y)}</span><div class="s-tex" data-tex="\\Delta w = ${f(c.dw, 3).replace('−', '-')}\\qquad \\Delta b = ${f(c.db, 3).replace('−', '-')}"></div><span class="s-note">error y − p = ${fs(c.err)} · step length ${f(len, 3)}</span></div>`, 'stepbox'); },
   fast: () => item(`<p class="s-title">40 more biopsies</p><p class="s-note">same loop each time: call, mark, one footstep</p>`, 'fasttitle') + `<div class="mapbox" id="stageLive" data-ref="map"></div>`,
-  pair: () => { const a = CASES[44], b = CASES[45], la = Math.hypot(a.dw, a.db), lb = Math.hypot(b.dw, b.db); return item(`<div class="meter" data-ref="pair"><div><span>biopsy 45 (radius 28.11): sure and right</span><i style="transform:scaleX(${Math.max(0.004, la / lb).toFixed(3)})"></i><b>${f(la, 4)}</b></div><div><span>biopsy 46 (radius 17.85): sure and wrong</span><i style="transform:scaleX(1)"></i><b>${f(lb)}</b></div></div><p class="s-note">stride length of each footstep</p>`, 'pair', 'pair'); },
-  three: () => `<div class="mapbox item" data-item="three" id="stageMap"></div><div class="legend3 item" data-item="legend">${[['h1', 0.05, 'var(--indigo)', 'step size 0.05: creeps'], ['h2', 0.5, 'var(--copper)', '0.5: arrives'], ['h3', 5, 'var(--plum)', '5: overshoots']].map(([r, e, c, t]) => `<button type="button" data-ref="${r}" data-eta="${e}" style="color:${c}"><i></i>${t}</button>`).join('')}</div>`,
-  done: () => item(`<div class="s-card"><span class="label">after all 569 footsteps</span><div class="s-big" data-ref="flip">flips at ${f(flipOf(...PATH[N]))}</div><div class="s-note" data-ref="acc">${pct(stat(...PATH[N]).acc)} right · J = ${stat(...PATH[N]).J.toFixed(3)}</div><div class="s-note">full-batch bottom: flips at ${f(flipOf(BEST.w, BEST.b))}, ${pct(stat(BEST.w, BEST.b).acc)}, J = ${stat(BEST.w, BEST.b).J.toFixed(3)}</div>${handFit() ? `<div class="s-note">your best hand-fit: J = ${handFit().J.toFixed(3)}, ${pct(handFit().acc)}</div>` : ''}</div>`, 'final'),
+  pair: () => { const a = CASES[44], b = CASES[45], la = Math.hypot(a.dw, a.db), lb = Math.hypot(b.dw, b.db); return item(`<div class="meter" data-ref="pair"><div><span>biopsy 45 (radius 28.11): sure and right</span><i style="transform:scaleX(${Math.max(0.004, la / lb).toFixed(3)})"></i><b>${f(la, 4)}</b></div><div><span>biopsy 46 (radius 17.85): sure and wrong</span><i style="transform:scaleX(1)"></i><b>${f(lb)}</b></div></div><p class="s-note">length of each step</p>`, 'pair', 'pair'); },
+  three: () => `<div class="mapbox item" data-item="three" id="stageMap"></div><div class="legend3 item" data-item="legend">${[['h1', 0.05, 'var(--ink-2)', 'step size 0.05: creeps', 'dotted'], ['h2', 0.5, 'var(--copper)', '0.5: arrives', 'solid'], ['h3', 5, 'var(--ink-3)', '5: overshoots', 'dashed']].map(([r, e, c, t, ls]) => `<button type="button" data-ref="${r}" data-eta="${e}" data-dash="${ls}" style="color:${c}"><i style="border-top-style:${ls}"></i>${t}</button>`).join('')}</div>`,
+  done: () => item(`<div class="s-card"><span class="label">after all 569 footsteps</span><div class="s-big" data-ref="flip">flip radius ${f(flipOf(...PATH[N]))}</div><div class="s-note" data-ref="acc">${pct(stat(...PATH[N]).acc)} right · J = ${stat(...PATH[N]).J.toFixed(3)}</div><div class="s-note">bottom of the valley (all 569 at once): flip radius ${f(flipOf(BEST.w, BEST.b))}, ${pct(stat(BEST.w, BEST.b).acc)}, J = ${stat(BEST.w, BEST.b).J.toFixed(3)}</div>${handFit() ? `<div class="s-note">your best fit by hand: J = ${handFit().J.toFixed(3)}, ${pct(handFit().acc)}</div>` : ''}</div>`, 'final'),
 };
 function dialHTML(id, gloss) { return `<div class="dial"><svg viewBox="0 0 74 74"><circle cx="37" cy="37" r="30" fill="var(--sheet)" stroke="var(--rule-strong)" stroke-width="2"/><line id="needle-${id}" x1="37" y1="37" x2="37" y2="12" stroke="var(--copper)" stroke-width="3" stroke-linecap="round"/></svg><b>${id} = <span id="dv-${id}">0</span></b><span>${gloss}</span></div>`; }
 
@@ -720,7 +730,7 @@ function stageMap(s, nRace) {
   const host = $('stageMap'); if (!host) return;
   if (s.stage === 'three') {
     const n = nRace ?? N;
-    drawMap(host, { id: 's3', bounds: [-1, 11, -7, 7], aspect: 0.6, bottom: true, start: true, paths: [{ pts: PATHS[5], n, color: 'var(--plum)', ref: 'h3', width: 1, opacity: 0.45 }, { pts: PATHS[0.05], n, color: 'var(--indigo)', ref: 'h1', width: 2.5 }, { pts: PATHS[0.5], n, color: 'var(--copper)', ref: 'h2', width: 2.5 }] });
+    drawMap(host, { id: 's3', bounds: [-1, 11, -7, 7], aspect: 0.6, bottom: true, start: true, paths: [{ pts: PATHS[5], n, color: 'var(--ink-3)', ref: 'h3', width: 1.2, opacity: 0.6, dash: '5 3' }, { pts: PATHS[0.05], n, color: 'var(--ink-2)', ref: 'h1', width: 2.5, dash: '1.5 3' }, { pts: PATHS[0.5], n, color: 'var(--copper)', ref: 'h2', width: 2.5 }] });
   } else drawMap(host, { id: 's', bounds: PANEL_BD, aspect: 0.62, items: true, bottom: true, start: true, you: s.stage === 'land', hiker: s.stage === 'fog' ? [0, 0] : null, fog: s.stage === 'fog', arrow: s.stage === 'fog' });
   const named = new Set((VOICE[s.clip].D || []).map(d => d[1]));
   host.querySelectorAll('svg [data-item]').forEach(e => { if (!named.has(e.dataset.item) || drawn.has(e.dataset.item)) e.classList.add('on'); });
@@ -764,7 +774,7 @@ function onDock(id, apply) {
   src.style.opacity = '0.35';
   home.style.opacity = '0';
   requestAnimationFrame(() => requestAnimationFrame(() => { fly.style.transform = `translate(${b.left - a.left}px, ${b.top - a.top}px) scale(${Math.max(0.05, b.width / a.width)}, ${Math.max(0.05, b.height / a.height)})`; fly.style.opacity = '0.6'; }));
-  setTimeout(() => { fly.remove(); home.style.opacity = ''; if (homeWin) pulse(homeWin); }, 720);
+  setTimeout(() => { fly.remove(); home.style.opacity = ''; src.style.opacity = ''; if (homeWin) pulse(homeWin); }, 720);
 }
 function pulse(e) { e.classList.remove('landing'); void e.offsetWidth; e.classList.add('landing'); }
 
@@ -897,10 +907,10 @@ function advanceLater(s, ms) { clearTimer(); if (waitsForUser(s) || steps[pos].s
 
 // ---- Coach: when a step waits for the learner, a bubble names the move and the control pulses.
 const COACH = {
-  knobs: () => ({ to: '#knobs', text: 'Drag both sliders: w tilts the line, b slides it.' }),
-  dimmer: () => ({ to: '#knobs', text: 'Now it bends into an S. Drag w and b until it rises through the dots.' }),
+  knobs: () => ({ to: '#knobs', below: true, text: 'Drag both sliders: w tilts the line, b slides it.' }),
+  dimmer: () => ({ to: '#knobs', below: true, text: 'Now it bends into an S. Drag w and b until it rises through the dots.' }),
   surprise: () => ({ to: '#knobs', text: 'Drag a slider and watch J: it moves smoothly, while % right jumps.' }),
-  ask: () => ({ to: '#fbRow', below: true, text: 'Compare the model\'s call with the pathology above, then mark it.' + (pos === YOUR_TURN ? ' Mark as many as you like, then Run the rest.' : '') }),
+  ask: () => ({ to: '#fbRow', below: true, text: 'Compare the model\'s call with the pathology above, then mark it.' }),
 };
 let coach = null, coachIdle = null;
 function showCoach(s, spec) {
@@ -908,40 +918,29 @@ function showCoach(s, spec) {
   if (!spec) return;
   hideCoach();
   const t = document.querySelector(spec.to); if (!t) return;
-  coach = { t, s, ring: !spec.quiet, below: spec.below };
-  if (coach.ring) t.classList.add('coach-on');
-  // Repeated marks in free play get the ring only; the bubble is for the first two.
+  coach = { t, s, note: null };
+  t.classList.add('coach-on');
+  // The way on lives in the guide's own status line.
+  if (spec.to === '#kPlay') { $('phase').textContent = spec.text; $('phase').classList.add('go'); return; }
+  // Repeated marks in free play get the ring only; the note is for the first two.
   if (s.free && s.ask && pos > YOUR_TURN + 2) return;
-  const el = $('coach'); el.textContent = spec.text; el.hidden = false;
+  const n = coach.note = document.createElement('p'); n.className = 'coach'; n.setAttribute('role', 'status'); n.textContent = spec.text; t.after(n);
   const r = t.getBoundingClientRect(), bottom = window.innerHeight - (window.innerWidth < 720 ? $('guide').offsetHeight + 8 : 0);
-  if (r.top < 60 || r.bottom > bottom - 8) t.scrollIntoView({ block: 'center', behavior: 'smooth' });
-  placeCoach();
+  if (r.top < 60 || r.bottom + 40 > bottom) t.scrollIntoView({ block: 'center', behavior: 'smooth' });
 }
-function placeCoach() {
-  const el = $('coach'); if (!coach || el.hidden) return;
-  const r = coach.t.getBoundingClientRect(), cw = el.offsetWidth, ch = el.offsetHeight, vw = window.innerWidth;
-  const floor = window.innerWidth < 720 && !$('guide').contains(coach.t) ? $('guide').getBoundingClientRect().top - 8 : window.innerHeight;
-  const above = coach.below ? r.bottom + ch + 14 > floor : r.top - ch - 14 >= 8;
-  el.dataset.side = above ? 'above' : 'below';
-  const left = Math.max(16, Math.min(vw - cw - 16, r.left + r.width / 2 - cw / 2));
-  el.style.left = left + 'px'; el.style.top = (above ? r.top - ch - 14 : r.bottom + 14) + 'px';
-  el.style.setProperty('--ax', Math.max(14, Math.min(cw - 14, r.left + r.width / 2 - left)) + 'px');
-}
-function hideCoach() { clearTimeout(coachIdle); if (coach) coach.t.classList.remove('coach-on'); coach = null; $('coach').hidden = true; }
-// Once the learner has tried the sliders and paused, the bubble moves to the way on.
+function hideCoach() { clearTimeout(coachIdle); if (coach) { coach.t.classList.remove('coach-on'); if (coach.note) coach.note.remove(); } coach = null; $('phase').classList.remove('go'); }
+// Once the learner has tried the sliders and paused, the prompt moves to the way on.
 function coachTried() {
   if (!coach || !coach.s.hands) return;
-  coach.t.classList.remove('coach-on'); $('coach').hidden = true;
+  coach.t.classList.remove('coach-on'); if (coach.note) { coach.note.remove(); coach.note = null; }
   clearTimeout(coachIdle);
   const s = coach.s;
-  coachIdle = setTimeout(() => { if (steps[pos] === s) showCoach(s, { to: '#kPlay', below: true, text: 'When you are ready, press ▶ to go on.' }); }, 2500);
+  coachIdle = setTimeout(() => { if (steps[pos] === s) showCoach(s, { to: '#kPlay', text: 'Ready? Press ▶ to go on.' }); }, 2500);
 }
-window.addEventListener('scroll', placeCoach, { passive: true });
-window.addEventListener('resize', placeCoach);
 function chrome(s) {
   $('scrub').max = steps.length - 1; $('scrub').value = pos;
-  $('stepN').textContent = `${pos + 1} / ${steps.length}`;
-  $('phase').textContent = s.stage === 'done' ? 'Done · step back to replay any moment' : pos >= YOUR_TURN ? 'Your turn · each mark is one footstep' : s.ask ? 'Mark the call · → marks it for you' : s.hands ? 'Try it, then press ▶ when ready' : `Guided · ${YOUR_TURN - pos} steps to your turn`;
+  $('stepN').textContent = s.stage === 'done' ? 'done' : pos >= YOUR_TURN ? 'free play' : `${pos + 1} / ${YOUR_TURN + 1}`;
+  $('phase').textContent = s.stage === 'done' ? 'Done · step back to replay any moment' : pos >= YOUR_TURN ? 'Your turn · each case is one step' : s.ask ? 'Mark the call · → marks it for you' : s.hands ? 'Try it, then press ▶ when ready' : `Guided · ${YOUR_TURN - pos} step${YOUR_TURN - pos === 1 ? '' : 's'} to your turn`;
   $('kBack').disabled = pos === 0;
   $('kNext').disabled = s.stage === 'done';
   $('msg').hidden = true;
@@ -999,6 +998,7 @@ function onKnob() {
 }
 $('kw').addEventListener('input', onKnob); $('kb').addEventListener('input', onKnob);
 $('knobs').addEventListener('input', coachTried);
+$('knobs').addEventListener('change', e => e.target.blur());
 function startWith(withSound) { gesture(); muted = !withSound; store.set('teach-muted', muted ? '1' : '0'); setSoundUI(); playing = withSound; setPlayIcon(); live = null; enter(); }
 $('bStart').addEventListener('click', () => startWith(true));
 // Nothing moves or speaks until the reader chooses: the opening frame stands still under a start card.
@@ -1027,7 +1027,7 @@ $('bNext').addEventListener('click', () => {
   next();
 });
 $('bAll').addEventListener('click', () => { gesture(); runRest(); });
-$('stage').addEventListener('click', e => { const b = e.target.closest('[data-eta]'); if (!b) return; const eta = b.dataset.eta; const tok = ++stageToken; loop(tok, t => { const n = Math.min(N, Math.round(t / 4 * N)); drawMap($('stageMap'), { id: 's3', bounds: [-1, 11, -7, 7], aspect: 0.6, bottom: true, start: true, paths: [{ pts: PATHS[eta], n, color: b.style.color, ref: b.dataset.ref, width: 2 }] }); return n < N; }); });
+$('stage').addEventListener('click', e => { const b = e.target.closest('[data-eta]'); if (!b) return; const eta = b.dataset.eta; const tok = ++stageToken; loop(tok, t => { const n = Math.min(N, Math.round(t / 4 * N)); drawMap($('stageMap'), { id: 's3', bounds: [-1, 11, -7, 7], aspect: 0.6, bottom: true, start: true, paths: [{ pts: PATHS[eta], n, color: b.style.color, ref: b.dataset.ref, width: 2, dash: { dotted: '1.5 3', dashed: '5 3' }[b.dataset.dash] }] }); return n < N; }); });
 document.addEventListener('keydown', e => {
   if (e.metaKey || e.ctrlKey || e.altKey || e.target instanceof HTMLInputElement) return;
   if (e.key === 'Escape') { $('detour').hidden = true; return; }
@@ -1035,12 +1035,12 @@ document.addEventListener('keydown', e => {
   else if (e.key === 'ArrowLeft') { e.preventDefault(); gesture(); back(); }
   else if (e.key === ' ' && !(e.target instanceof HTMLButtonElement)) { e.preventDefault(); gesture(); togglePlay(); }
 });
-window.addEventListener('resize', () => { if (live) { drawCurve(live); drawMapPanel(live); const s = steps[pos]; if (['land', 'fog', 'three'].includes(s.stage)) stageMap(s); } });
+window.addEventListener('resize', () => { chipsH = 0; if (live) { renderChips(live); drawCurve(live); drawMapPanel(live); const s = steps[pos]; if (['land', 'fog', 'three'].includes(s.stage)) stageMap(s); } });
 if (typeof ResizeObserver === 'function') new ResizeObserver(() => document.documentElement.style.setProperty('--guide-h', $('guide').offsetHeight + 'px')).observe($('guide'));
 if (window.innerWidth < 720) $('monitor').open = false;
 setSoundUI();
 poster();
 </script>
-<footer style="max-width:1100px;margin:24px auto 0;padding:16px max(16px, env(safe-area-inset-left)) calc(24px + var(--guide-h, 0px));font:13px/1.6 system-ui, sans-serif;color:#6f665c;border-top:1px solid #d8cdbf">Data: Wisconsin Diagnostic Breast Cancer dataset, 569 biopsies, as shipped with scikit-learn. Feature: mean radius of the cell nuclei. Accuracy figures are on the same 569 biopsies the model learned from, so they show how well it fits, not how it would do on new patients.</footer>
+<footer style="width:min(100% - 32px, 1320px);box-sizing:border-box;margin:24px auto 0;padding:16px 0 calc(24px + var(--guide-h, 0px));font:13px/1.6 system-ui, sans-serif;color:#6f665c;border-top:1px solid #d8cdbf">Data: Wisconsin Diagnostic Breast Cancer dataset, 569 biopsies, as shipped with scikit-learn. Feature: mean radius of the cell nuclei. Accuracy figures are on the same 569 biopsies the model learned from, so they show how well it fits, not how it would do on new patients.</footer>
 </body>
 </html>
