@@ -132,7 +132,7 @@ svg .item.on { opacity: 1; }
 .s-tex { text-align: center; font-size: 1.5em; overflow-x: auto; overflow-y: hidden; padding: 4px 0; }
 .s-tex .katex { font-size: 1.15em; }
 .s-card { align-self: center; border: 1px solid var(--rule-strong); border-radius: var(--r2); padding: 14px 20px; background: var(--sheet); min-width: 240px; text-align: center; }
-.s-card .label { display: block; }
+.s-card .label, .s-card .s-note { display: block; }
 .s-row { display: flex; gap: 14px; justify-content: center; flex-wrap: wrap; }
 .dial { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px 10px; border-radius: 8px; }
 .dial svg { width: 74px; height: 74px; }
@@ -147,6 +147,14 @@ svg .item.on { opacity: 1; }
 .factors { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
 .factor { border: 1px solid var(--rule); border-radius: var(--r2); padding: 6px 12px; text-align: center; font: 400 13px/18px var(--sans); color: var(--ink-2); }
 .factor b { display: block; font: 600 15px/22px var(--sans); color: var(--ink); }
+.guess { align-self: center; display: flex; flex-direction: column; gap: 8px; align-items: center; padding: 4px 8px; }
+.gq { display: flex; flex-wrap: wrap; align-items: center; justify-content: center; gap: 6px 12px; font: 500 15px/22px var(--sans); }
+.gopts { display: inline-flex; gap: 8px; }
+.gopts .btn { min-height: 44px; min-width: 96px; }
+.gopts .btn[aria-pressed="true"] { background: var(--ink); color: var(--sheet); border-color: var(--ink); }
+.honest { margin: 0; font: 400 12px/18px var(--sans); color: var(--ink-3); text-align: center; }
+.reveal { max-width: 560px; align-self: center; }
+.reveal b { font-weight: 600; color: var(--ink); }
 .legend3 { display: flex; gap: 8px; justify-content: center; flex-wrap: wrap; }
 .legend3 button { appearance: none; border: 1px solid var(--rule-strong); background: var(--sheet); border-radius: 14px; padding: 2px 10px; font: 500 13px/20px var(--sans); cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
 .legend3 button i { width: 14px; height: 0; border-top: 2.5px solid currentColor; }
@@ -245,12 +253,8 @@ svg [data-ref] { transition: filter 350ms var(--ease); }
           <dl class="rows2">
             <dt>Model's call</dt><dd><span id="callTxt" data-ref="p call"></span><div class="pbar"><i id="pfill"></i><b></b></div></dd>
             <dt>Pathology</dt><dd id="truth" data-ref="truth"></dd>
-            <dt>Your mark</dt><dd id="mark"></dd>
+            <dt id="markT">Your guess</dt><dd id="mark" data-ref="guess"></dd>
           </dl>
-          <div class="fb" id="fbRow" data-ref="mark">
-            <button class="btn" id="bRight" type="button">Call is right</button>
-            <button class="btn" id="bWrong" type="button">Call is wrong</button>
-          </div>
           <div class="fb" id="freeRow" hidden>
             <button class="btn pri" id="bNext" type="button" data-ref="next">Next case</button>
             <button class="btn" id="bAll" type="button" data-ref="rest">Run the rest</button>
@@ -349,12 +353,46 @@ let handBest = null;
 const handFit = () => handBest || (knob.w || knob.b ? { w: knob.w, b: knob.b, ...stat(knob.w, knob.b) } : null);
 
 // ---- World: everything the panels show. Each step starts from the world the previous step ended with.
-const W0 = { panels: [], chips: [], caseK: 45, level: 'x', curve: { dots: false, sd: false, mode: 'none', knobs: false }, grade: false, map: { you: false, bottom: false, hiker: false }, n: null };
+const W0 = { panels: [], chips: [], caseK: 45, level: 'x', curve: { dots: false, sd: false, mode: 'none', knobs: false }, grade: false, map: { you: false, bottom: false, hiker: false }, n: null, q: null };
 const clone = w => JSON.parse(JSON.stringify(w));
 const add = (arr, ...xs) => { for (const x of xs) if (!arr.includes(x)) arr.push(x); };
 
-const ask = (k, clip, extra = {}) => ({ clip, stage: 'ask', ask: true, muts: { start: w => { w.caseK = k; w.level = 'ask'; } }, text: clip ? null : c => `Biopsy ${c.k + 1}: radius ${f(c.x)}. The model says ${word(c.call)}, p = ${fp(c.p)}. The report says ${word(c.y)}. Mark the call.`, ...extra });
-const upd = (k, clip, extra = {}) => ({ clip, stage: 'step', muts: { start: w => { w.caseK = k; w.level = 'y'; }, cue: w => { w.n = k + 1; w.level = 'upd'; } }, ...extra });
+// ---- Predictions. Before a footstep the reader commits a guess about it; the reveal shows the guess beside what happened.
+// A guess is the reader's alone: it is stored in GUESSES and shown, and nothing that computes a step reads it.
+const GUESSES = {};
+const ud = v => v > 0 ? 'up' : 'down';
+const UD = [['up', 'Up'], ['down', 'Down']];
+// Each part: the question, its options [value, button label], the true value, and what happened in words.
+const Q = {
+  mark: { parts: [{ ask: 'Is the model’s call right or wrong?', opts: [['right', 'Call is right'], ['wrong', 'Call is wrong']], truth: c => c.call === c.y ? 'right' : 'wrong', result: c => `the call was ${c.call === c.y ? 'right' : 'wrong'}` }],
+    says: c => `The model said ${word(c.call)}; the report says ${word(c.y)}.` },
+  wdir: { parts: [{ ask: 'Which way does w move on this step?', opts: [['up', 'w goes up'], ['down', 'w goes down']], truth: c => ud(c.dw), result: c => `w went ${ud(c.dw)} by ${f(Math.abs(c.dw), 3)}` }],
+    says: c => `y − p = ${fs(c.err)} and x̃ = ${fs(c.xt)}: ${(c.err > 0) === (c.xt > 0) ? 'same signs, so the product is positive' : 'opposite signs, so the product is negative'}.` },
+  still: { parts: [{ ask: 'The call is right. Will the model still take a step?', opts: [['yes', 'Yes, a step'], ['no', 'No step']], truth: c => c.len > 0 ? 'yes' : 'no', result: c => `a step ${f(c.len, 3)} long` }],
+    says: c => `Right but unsure: y − p = ${fs(c.err)} is not zero, so the knobs move.` },
+  size: { parts: [{ ask: 'Bigger step than the last one, or smaller?', opts: [['bigger', 'Bigger'], ['smaller', 'Smaller']], truth: c => c.len > CASES[c.k - 1].len ? 'bigger' : 'smaller', result: c => `${f(c.len, 3)} long, against ${f(CASES[c.k - 1].len, 3)} last time` }],
+    says: c => `Error ${fs(c.err)} against ${fs(CASES[c.k - 1].err)}, and x̃ = ${fs(c.xt)} against ${fs(CASES[c.k - 1].xt)}.` },
+  J: { parts: [{ ask: 'Will the average surprise J, over all 569, go up or down?', opts: [['up', 'J goes up'], ['down', 'J goes down']], truth: c => ud(c.dJ), result: c => `J went ${ud(c.dJ)}, ${c.J0.toFixed(4)} → ${c.J1.toFixed(4)}` }],
+    says: () => `Not every step does: ${UPHILL} of the ${N} footsteps in this pass raise J.` },
+  tiny: { parts: [{ ask: 'A tiny step, or a big one?', opts: [['tiny', 'Tiny'], ['big', 'Big']], truth: c => c.len < 0.05 ? 'tiny' : 'big', result: c => `a step ${f(c.len, 4)} long` }],
+    says: c => `p is so close to y that y − p = ${fs(c.err, 4)}: little left to fix, so a tiny step, but not zero.` },
+  LJ: { parts: [{ id: 'L', ask: 'This biopsy’s own surprise L:', opts: UD, truth: c => ud(c.L1 - c.L), result: c => `L went ${ud(c.L1 - c.L)}, ${f(c.L)} → ${f(c.L1)}` },
+                { id: 'J', ask: 'The average surprise J over all 569:', opts: UD, truth: c => ud(c.dJ), result: c => `J went ${ud(c.dJ)}, ${c.J0.toFixed(4)} → ${c.J1.toFixed(4)}` }],
+    says: () => 'The step fixes this biopsy a little, and moves every other call with it.' },
+};
+const qKey = (k, q) => k + ':' + q;
+// The reader's guess beside what happened; never a score.
+function guessLine(key) {
+  const [k, q] = key.split(':'), c = CASES[+k], g = GUESSES[key] || [], parts = Q[q].parts;
+  const lab = (p, v) => ((parts.length > 1 ? p.id + ' ' : '') + p.opts.find(o => o[0] === v)[1]).replace(/^(\w) (Up|Down)$/, (m, a, b) => `${a} ${b.toLowerCase()}`);
+  return { said: parts.every((_, i) => g[i]) ? parts.map((p, i) => lab(p, g[i])).join(', ') : null, was: parts.map(p => p.result(c)).join('; '), says: Q[q].says(c) };
+}
+const HONEST = 'Your guess is for you: the model steps from the pathology label either way.';
+
+// ---- The guided steps. An ask step poses a guess about the next footstep; the step after it reveals.
+const askQ = (k, q, clips, extra = {}) => ({ clips, stage: 'ask', ask: true, q, k, muts: { start: w => { w.caseK = k; w.level = 'ask'; w.q = qKey(k, q); } },
+  text: clips ? null : c => `Biopsy ${c.k + 1}: radius ${f(c.x)}, x̃ = ${fs(c.xt)}. The model says ${word(c.call)}, p = ${fp(c.p)}; the report says ${word(c.y)} (y = ${c.y}). ${Q[q].parts.map(p => p.ask).join(' ')}`, ...extra });
+const upd = (k, clips, extra = {}) => ({ clips, stage: 'step', muts: { start: w => { w.caseK = k; w.level = 'y'; }, cue: w => { w.n = k + 1; w.level = 'upd'; } }, ...extra });
 const GUIDED = [
   { clip: 'v01', stage: 'question', win: 'stage', muts: { 'dock:x': w => { add(w.panels, 'case'); add(w.chips, 'x'); }, 'dock:dots': w => { add(w.panels, 'curve'); w.curve.dots = true; } } },
   { clip: 'v02', stage: 'ruler', muts: { 'dock:xt': w => { add(w.chips, 'xt'); w.curve.sd = true; } } },
@@ -364,29 +402,33 @@ const GUIDED = [
   { clip: 'v06', stage: 'surprise', hands: true, muts: { 'dock:J': w => { w.grade = true; add(w.chips, 'L'); } } },
   { clip: 'v07', stage: 'land', muts: { 'dock:map': w => { add(w.panels, 'map'); w.map.you = true; w.map.bottom = true; } } },
   { clip: 'v08', stage: 'fog', muts: { 'dock:hiker': w => { w.map.hiker = true; w.n = 0; } } },
-  ask(0, 'g05', { text: null }),
-  { clip: 'v09', clips: ['v09', 'v09b'], markReact: 'mW', stage: 'rule', muts: { start: w => { w.caseK = 0; w.level = 'y'; add(w.chips, 'err'); }, cue: w => { w.n = 1; w.level = 'upd'; }, 'dock:dw': w => { add(w.chips, 'dw', 'db', 'eta'); } } },
-  ask(1, null), upd(1, 'w302'),
-  ask(2, null), upd(2, 'w84'),
-  ask(3, null), upd(3, 'w0'),
-  { clip: 'w40', stage: 'fast', muts: { start: w => { w.level = 'none'; }, cue: w => { w.n = 44; } } },
-  ask(44, 'w212'), upd(44, 'g16'),
-  ask(45, 'w491'), upd(45, 'g18', { markReact: 'mW' }),
-  { clip: 'wIns', stage: 'pair' },
+  askQ(0, 'mark', ['g05']),
+  { clip: 'v09', markReact: 'mW', stage: 'rule', muts: { start: w => { w.caseK = 0; w.level = 'y'; add(w.chips, 'err'); } } },
+  askQ(0, 'wdir', ['pW'], { stage: 'rule' }),
+  { clip: 'v09b', stage: 'rule', reveal: true, muts: { start: w => { w.caseK = 0; w.level = 'y'; }, cue: w => { w.n = 1; w.level = 'upd'; }, 'dock:dw': w => { add(w.chips, 'dw', 'db', 'dJ', 'eta'); } } },
+  askQ(1, 'still', ['p1']), upd(1, ['w302']),
+  askQ(2, 'size', ['p2']), upd(2, ['w84']),
+  askQ(3, 'J', ['p3']), upd(3, ['w0']),
+  { clip: 'w40', stage: 'fast', muts: { start: w => { w.level = 'none'; w.q = null; }, cue: w => { w.n = 44; } } },
+  askQ(44, 'tiny', ['w212', 'p44']), upd(44, ['g16']),
+  askQ(45, 'LJ', ['w491', 'p45']), upd(45, ['g18', 'jUp']),
+  { clip: 'wIns', stage: 'pair', muts: { start: w => { w.q = null; } } },
   { clip: 'v11', stage: 'three' },
-  ask(46, 'g19', { free: true, text: null }),
+  askQ(46, 'wdir', ['g19'], { free: true }),
 ];
 const YOUR_TURN = GUIDED.length - 1;
 // Free play: one short reaction per footstep, picked by how far off the call was (|y − p|), never the same clip twice in a row.
+// On these 523 cases |y − p| orders the step lengths closely: under 0.1 the steps are at most 0.066 long; from 0.75 up, at least 0.38.
 const BUCKETS = [[0.1, ['t1', 't2']], [0.5, ['s1', 's2']], [0.75, ['m1', 'm2']], [Infinity, ['b1', 'b2']]];
 const turn = {};
 function reactionFor(c) { const [lim, ids] = BUCKETS.find(([l]) => Math.abs(c.err) < l); turn[lim] = ((turn[lim] ?? -1) + 1) % 2; return ids[turn[lim]]; }
 function freeStep(k, ph) {
-  if (ph === 'ask') return ask(k, null, { free: true });
+  if (ph === 'ask') return askQ(k, 'wdir', null, { free: true });
   const react = reactionFor(CASES[k]);
-  return { react: react, stage: 'step', free: true, muts: { start: w => { w.caseK = k; w.level = 'upd'; w.n = k + 1; } }, text: c => `${VOICE[react].s.map(x => x[1].replace(/<[^>]+>/g, '')).join(' ')} Δw = ${fs(c.dw, 3)}, Δb = ${fs(c.db, 3)}.` };
+  return { react, stage: 'step', free: true, muts: { start: w => { w.caseK = k; w.level = 'upd'; w.n = k + 1; } },
+    text: c => { const g = guessLine(qKey(k, 'wdir')); return `${plain(VOICE[react].s.map(x => x[1]).join(' '))} ${g.said ? `Your guess: ${g.said}. What happened: ${g.was}.` : `${g.was}.`} Δw = ${fs(c.dw, 3)}, Δb = ${fs(c.db, 3)}, ΔJ = ${fs(c.dJ, 4)}.`; } };
 }
-const doneStep = () => ({ clip: 'done', stage: 'done', free: true, muts: { start: w => { w.level = 'none'; }, cue: w => { w.n = N; } } });
+const doneStep = () => ({ clip: 'done', stage: 'done', free: true, muts: { start: w => { w.level = 'none'; w.q = null; }, cue: w => { w.n = N; } } });
 
 let steps = GUIDED.slice(), pos = 0, playing = false, timer = null, doneAt = -1;
 const worlds = []; // worlds[i] = world at the start of step i
@@ -408,20 +450,20 @@ function caseView(w) {
   const z = mw * base.xt + mb, p = sig(z), err = base.y - p;
   return { ...base, w: mw, b: mb, z, p, call: p >= 0.5 ? 1 : 0, L: -(base.y ? Math.log(p) : Math.log(1 - p)), err, dw: ETA * err * base.xt, db: ETA * err };
 }
-const LEVELS = { none: 0, x: 1, live: 2, ask: 2, y: 3, upd: 4 };
+const LEVELS = { none: 0, x: 1, live: 2, ask: 3, y: 3, upd: 4 };
 const CHIP = {
   x: ['x', 'radius', c => f(c.x)], xt: ['x̃', 'in sd', c => fs(c.xt)], w: ['w', 'sensitivity', (c, w) => wbChip(c, w, 0)], b: ['b', 'baseline', (c, w) => wbChip(c, w, 1)],
   z: ['z', 'score', c => f(c.z)], p: ['p', 'probability', c => c.p > 0.999 ? '>0.999' : fp(c.p)], L: ['L', 'surprise, this case', c => c.L < 0.001 ? '<0.001' : f(c.L)], err: ['y−p', 'error', c => Math.abs(c.err) < 0.001 ? (c.err > 0 ? '+' : '−') + '<0.001' : fs(c.err)],
-  dw: ['Δw', 'change', c => fs(c.dw, 3)], db: ['Δb', 'change', c => fs(c.db, 3)], eta: ['η', 'step size', () => '0.5'],
+  dw: ['Δw', 'change', c => fs(c.dw, 3)], db: ['Δb', 'change', c => fs(c.db, 3)], dJ: ['ΔJ', 'average surprise, this step', c => fs(c.dJ, 4)], eta: ['η', 'step size', () => '0.5'],
 };
 function wbChip(c, w, i) { const now = modelWB(w)[i], was = i ? c.b : c.w; return w.level === 'upd' && was !== undefined && Math.abs(was - now) > 0.0005 ? `${f(was)} → ${f(now)}` : f(now); }
-const CHIPREF = { w: 'w step', b: 'b step', dw: 'dw step', db: 'db step', L: 'L', err: 'err', eta: 'eta' };
-const NEED = { x: 1, xt: 1, w: 0, b: 0, z: 2, p: 2, L: 3, err: 3, dw: 4, db: 4, eta: 0 };
+const CHIPREF = { w: 'w step', b: 'b step', dw: 'dw step', db: 'db step', dJ: 'dJ', L: 'L', err: 'err', eta: 'eta' };
+const NEED = { x: 1, xt: 1, w: 0, b: 0, z: 2, p: 2, L: 3, err: 3, dw: 4, db: 4, dJ: 4, eta: 0 };
 function renderChips(w) {
   const box = $('chips'), c = caseView(w), lv = LEVELS[w.level] + (w.level === 'live' ? 1 : 0);
   $('monEmpty').hidden = w.chips.length > 0;
   box.innerHTML = '';
-  for (const id of ['x', 'xt', 'w', 'b', 'z', 'p', 'L', 'err', 'dw', 'db', 'eta']) {
+  for (const id of ['x', 'xt', 'w', 'b', 'z', 'p', 'L', 'err', 'dw', 'db', 'dJ', 'eta']) {
     if (!w.chips.includes(id)) continue;
     const [sym, gloss, val] = CHIP[id], wb = id === 'w' || id === 'b', show = wb || id === 'eta' || (w.level !== 'none' && (lv >= NEED[id] || w.level === 'live'));
     const s = document.createElement('span'); s.className = 'chip'; s.dataset.ref = CHIPREF[id] || id; s.dataset.chip = id;
@@ -442,11 +484,12 @@ function renderCase(w, s) {
   $('callTxt').className = seen ? '' : 'idle';
   $('pfill').style.width = seen ? (c.p * 100).toFixed(1) + '%' : '0%';
   $('truth').innerHTML = lv >= 3 ? `${dx(c.y)} (y = ${c.y})` : lv >= 2 ? dx(c.y) : '·';
-  $('mark').innerHTML = lv >= 3 ? `<span class="mchip">call ${c.call === c.y ? 'right' : 'wrong'}</span>` : '<span class="idle">·</span>';
-  const asking = s && s.ask && lv === 2;
-  $('fbRow').hidden = !(s && (s.ask || lv >= 3)) || w.level === 'none';
-  for (const b of [$('bRight'), $('bWrong')]) { b.disabled = !asking; b.classList.toggle('pulse', !!asking); }
+  // The guess row: waiting while the step asks, then the reader's guess beside what happened.
+  const showG = !!w.q && w.level !== 'none';
+  $('markT').hidden = $('mark').hidden = !showG;
+  if (showG) { const g = guessLine(w.q); $('mark').innerHTML = s && s.ask ? '<span class="idle">waiting for your guess</span>' : `<span class="mchip">you: ${g.said || 'no guess'}</span> <span class="mchip">${g.was}</span>`; }
   $('freeRow').hidden = pos < YOUR_TURN || w.n >= N;
+  $('bNext').textContent = s && s.ask ? 'Skip the guess' : 'Next case';
   $('bNext').disabled = w.n >= N; $('bAll').disabled = w.n >= N;
   $('bAll').textContent = w.n >= N ? 'All 569 taught' : `Run the rest (${N - (w.n || 0)})`;
   $('caseTag').textContent = w.n === null || c.k > w.n ? '' : pos >= YOUR_TURN ? (w.n >= N ? 'done' : 'your turn') : 'guided';
@@ -675,6 +718,11 @@ function plotSVG(fn, o) {
   s += `<text x="${R}" y="${T + 8}" text-anchor="end" class="cap">${o.label}</text><path d="${d}" fill="none" stroke="${o.color || 'var(--copper)'}" stroke-width="2.5" ${o.step ? '' : 'stroke-linejoin="round"'}/>`;
   return s + (o.extra ? o.extra(cx, cy) : '') + '</svg>';
 }
+function guessHTML(s) {
+  const g = GUESSES[qKey(s.k, s.q)] || [];
+  return item(`<div class="guess" id="guessBox" data-ref="guess">${Q[s.q].parts.map((p, i) => `<div class="gq"><span class="gqt">${p.ask}</span><span class="gopts">${p.opts.map(([v, l]) => `<button class="btn" type="button" data-part="${i}" data-guess="${v}" aria-pressed="${g[i] === v}">${l}</button>`).join('')}</span></div>`).join('')}<p class="honest">${HONEST}</p></div>`, 'guessbox');
+}
+function revealHTML(key) { const g = guessLine(key); return item(`<p class="s-note reveal" data-ref="guess"><b>${g.said ? `Your guess: ${g.said}. What happened: ${g.was}.` : `What happened: ${g.was}.`}</b> ${g.says}</p>`, 'reveal'); }
 const SCENES = {
   question: () => item(`<div class="s-card" data-ref="x"><span class="label">An example biopsy</span><div class="s-big" data-dockfrom="x">17.85</div><span class="s-note">mean radius of the cell nuclei <button class="help" data-detour="radius" aria-label="What is mean radius?">?</button></span></div>`, 'card') +
     item('<p class="s-title">Malignant or benign?</p>', 'q') + item(dotsSVG(), 'dots', 'dots'),
@@ -692,14 +740,15 @@ const SCENES = {
     item(plotSVG(w => Jof(w, BEST.b), { x0: 0, x1: 6, y0: 0.25, y1: 0.75, xt: [0, 2, 4, 6], yt: [0.3, 0.5, 0.7], label: 'J as w turns (same b): smooth, with a bottom', h: 120 }), 'bowl', 'loss'),
   land: () => `<div class="mapbox item" data-item="map" data-ref="map" data-dockfrom="map" id="stageMap"></div><p class="s-note item" data-item="mapnote">Each point is one setting of (w, b). Its shade is its average surprise J: lighter is lower.</p>`,
   fog: () => `<div class="mapbox item" data-item="fog" id="stageMap"></div>` + item('<p class="s-note">One case gives a rough slope, fast. All 569 give the true slope, slowly.</p>', 'one') + '<p class="s-note item" data-item="zero">The model starts from w = 0, b = 0, not from your fit.</p>',
-  ask: () => { const c = caseView(live); return item(`<div class="s-card"><span class="label">Biopsy ${c.k + 1}${live.n !== null ? '' : ''}</span><div class="s-big" data-ref="x">${f(c.x)}</div><div class="s-note" data-ref="p call">model: ${dx(c.call)}, p = ${fp(c.p)}</div><div class="s-note" data-ref="truth">pathology: ${dx(c.y)}</div></div>`, 'askcard') + item(`<p class="s-note">Mark the call in the Case panel.${live.n === 0 ? `<br>p = 0.50 is called malignant because the cutoff is p ≥ 0.5. Your mark is for you to follow along: the model learns from the pathology label, not from your mark.` : ''}</p>`, 'askhint'); },
-  rule: () => item(`<div class="s-tex" data-tex="\\begin{aligned} w &\\leftarrow w + \\htmlClass{r-eta}{\\eta}\\cdot\\htmlClass{r-err}{(y-p)}\\cdot\\htmlClass{r-xt}{\\tilde x}\\\\ b &\\leftarrow b + \\htmlClass{r-eta}{\\eta}\\cdot\\htmlClass{r-err}{(y-p)}\\end{aligned}"></div>`, 'rule') +
-    `<div class="factors">` + item('<b>y − p = −0.50</b>which way, how far', 'f1', 'err', 'factor') + item('<b>x̃ = −1.16</b>blame', 'f2', 'xt', 'factor') + item('<b>η = 0.5</b>how bold (step size)', 'f3', 'eta', 'factor') + `</div>` +
+  ask: s => { const c = caseView(live); return item(`<div class="s-card"><span class="label">Biopsy ${c.k + 1} of ${N}</span><div class="s-big" data-ref="x">${f(c.x)}</div><div class="s-note">mean radius · x̃ = ${fs(c.xt)}</div><div class="s-note" data-ref="p call">model: ${dx(c.call)}, p = ${fp(c.p)}</div><div class="s-note" data-ref="truth">pathology: ${dx(c.y)} (y = ${c.y})</div>${c.p === 0.5 ? '<div class="s-note">p = 0.50 counts as malignant: the cutoff is p ≥ 0.5.</div>' : ''}</div>`, 'askcard') + guessHTML(s); },
+  rule: s => { const c = CASES[0], T = v => M(fs(v)).replace('−', '-'), F = v => f(v).replace('−', '-');
+    return item(`<div class="s-tex" data-tex="\\begin{aligned} w &\\leftarrow w + \\htmlClass{r-eta}{\\eta}\\cdot\\htmlClass{r-err}{(y-p)}\\cdot\\htmlClass{r-xt}{\\tilde x}\\\\ b &\\leftarrow b + \\htmlClass{r-eta}{\\eta}\\cdot\\htmlClass{r-err}{(y-p)}\\end{aligned}"></div>`, 'rule') +
+    `<div class="factors">` + item(`<b>y − p = ${fs(c.err)}</b>which way, how far`, 'f1', 'err', 'factor') + item(`<b>x̃ = ${fs(c.xt)}</b>how much the radius counts`, 'f2', 'xt', 'factor') + item(`<b>η = ${ETA}</b>how bold (step size)`, 'f3', 'eta', 'factor') + `</div>` +
     item(`<div class="s-card" style="padding:8px 14px"><span class="label">what if: a biopsy at exactly the average radius, ${f(MU)}</span><span class="s-note">x̃ = 0, so Δw = 0: w would not move; only b would.</span></div>`, 'ghost', 'ghost') +
-    item(`<div class="s-tex" data-dockfrom="dw" data-tex="\\begin{aligned}\\Delta w &= 0.5\\cdot(-0.5)\\cdot(-1.16) = +0.29\\\\ \\Delta b &= 0.5\\cdot(-0.5) = -0.25\\end{aligned}"></div>`, 'nums'),
-  step: () => { const c = CASES[live.caseK]; const len = Math.hypot(c.dw, c.db); return `<div class="mapbox" id="stageLive" data-ref="map"></div>` + item(`<div class="s-card" style="padding:8px 16px" data-ref="step"><span class="label">footstep ${c.k + 1} · radius ${f(c.x)}, ${word(c.y)}</span><div class="s-tex" data-tex="\\Delta w = ${f(c.dw, 3).replace('−', '-')}\\qquad \\Delta b = ${f(c.db, 3).replace('−', '-')}"></div><span class="s-note">error y − p = ${fs(c.err)} · step length ${f(len, 3)}</span></div>`, 'stepbox'); },
+    (s.ask ? guessHTML(s) : s.reveal ? item(`<div class="s-tex" data-dockfrom="dw" data-tex="\\begin{aligned}\\Delta w &= ${ETA}\\cdot(${F(c.err)})\\cdot(${F(c.xt)}) = ${T(c.dw)}\\\\ \\Delta b &= ${ETA}\\cdot(${F(c.err)}) = ${T(c.db)}\\end{aligned}"></div>`, 'nums') + revealHTML(qKey(0, 'wdir')) : ''); },
+  step: s => { const c = CASES[live.caseK], key = live.q && +live.q.split(':')[0] === c.k ? live.q : null; return `<div class="mapbox" id="stageLive" data-ref="map"></div>` + item(`<div class="s-card" style="padding:8px 16px" data-ref="step"><span class="label">footstep ${c.k + 1} · radius ${f(c.x)}, ${word(c.y)}</span><div class="s-tex" data-tex="\\Delta w = ${f(c.dw, 3).replace('−', '-')}\\qquad \\Delta b = ${f(c.db, 3).replace('−', '-')}"></div><span class="s-note">error y − p = ${fs(c.err)} · step length ${f(c.len, 3)}</span><span class="s-note" data-ref="dJ">average surprise J: ${c.J0.toFixed(4)} → ${c.J1.toFixed(4)}, ${c.dJ > 0 ? 'up' : 'down'} ${f(Math.abs(c.dJ), 4)}</span>${key && key.endsWith(':LJ') ? `<span class="s-note" data-ref="L">this biopsy’s surprise L: ${f(c.L)} → ${f(c.L1)}</span>` : ''}</div>`, 'stepbox') + (key ? revealHTML(key) : ''); },
   fast: () => item(`<p class="s-title">40 more biopsies</p><p class="s-note">same loop each time: call, check, one step</p>`, 'fasttitle') + `<div class="mapbox" id="stageLive" data-ref="map"></div>`,
-  pair: () => { const a = CASES[44], b = CASES[45], la = Math.hypot(a.dw, a.db), lb = Math.hypot(b.dw, b.db); return item(`<div class="meter" data-ref="pair"><div><span>biopsy 45 (radius 28.11): sure and right</span><i style="transform:scaleX(${Math.max(0.004, la / lb).toFixed(3)})"></i><b>${f(la, 4)}</b></div><div><span>biopsy 46 (radius 17.85): sure and wrong</span><i style="transform:scaleX(1)"></i><b>${f(lb)}</b></div></div><p class="s-note">length of each step</p>`, 'pair', 'pair'); },
+  pair: () => { const a = CASES[44], b = CASES[45]; return item(`<div class="meter" data-ref="pair"><div><span>biopsy ${a.k + 1} (radius ${f(a.x)}): sure and right</span><i style="transform:scaleX(${Math.max(0.004, a.len / b.len).toFixed(3)})"></i><b>${f(a.len, 4)}</b></div><div><span>biopsy ${b.k + 1} (radius ${f(b.x)}): sure and wrong</span><i style="transform:scaleX(1)"></i><b>${f(b.len)}</b></div></div><p class="s-note">length of each step</p>`, 'pair', 'pair'); },
   three: () => `<div class="mapbox item" data-item="three" id="stageMap"></div><div class="legend3 item" data-item="legend">${[['h1', 0.05, 'var(--ink-2)', 'step size 0.05: creeps', 'dotted'], ['h2', 0.5, 'var(--copper)', '0.5: arrives', 'solid'], ['h3', 5, 'var(--ink-3)', '5: overshoots', 'dashed']].map(([r, e, c, t, ls]) => `<button type="button" data-ref="${r}" data-eta="${e}" data-dash="${ls}" style="color:${c}"><i style="border-top-style:${ls}"></i>${t}</button>`).join('')}</div>`,
   done: () => item(`<div class="s-card"><span class="label">after all 569 footsteps</span><div class="s-big" data-ref="flip">flip radius ${f(flipOf(...PATH[N]))}</div><div class="s-note" data-ref="acc">${pct(stat(...PATH[N]).acc)} right · J = ${stat(...PATH[N]).J.toFixed(3)}</div><div class="s-note">bottom of the valley (all 569 at once): flip radius ${f(flipOf(BEST.w, BEST.b))}, ${pct(stat(BEST.w, BEST.b).acc)}, J = ${stat(BEST.w, BEST.b).J.toFixed(3)}</div>${handFit() ? `<div class="s-note">your best fit by hand: J = ${handFit().J.toFixed(3)}, ${pct(handFit().acc)}</div>` : ''}</div>`, 'final'),
 };
@@ -707,7 +756,7 @@ function dialHTML(id, gloss) { return `<div class="dial"><svg viewBox="0 0 74 74
 
 function buildStage(s) {
   stageToken++;
-  const st = stageEl(); st.innerHTML = SCENES[s.stage] ? SCENES[s.stage]() : '';
+  const st = stageEl(); st.innerHTML = SCENES[s.stage] ? SCENES[s.stage](s) : '';
   st.querySelectorAll('[data-tex]').forEach(e => texInto(e, e.dataset.tex));
   const xtf = st.querySelector('[data-dockfrom="xt"]'); if (xtf) texInto(xtf, '\\htmlClass{r-xt}{\\tilde x} = \\dfrac{x - \\text{average}}{\\text{sd}} = \\dfrac{17.85 - 14.13}{3.52} = +1.06');
   const named = new Set(clipsOf(s).flatMap(id => (VOICE[id].D || []).map(d => d[1])));
@@ -797,7 +846,7 @@ const motionOK = () => !(window.matchMedia && matchMedia('(prefers-reduced-motio
 const sound = () => unlocked && !muted && typeof Audio === 'function';
 
 // ---- Highlights: elements whose data-ref names the phrase being spoken get the highlight.
-const REFS = ['x', 'dots', 'ruler', 'xt', 'w', 'b', 'bulb', 'p', 'call', 'stairs', 'same', 'm1', 'm2', 'm3', 'L', 'loss', 'map', 'you', 'bottom', 'arrow', 'err', 'ghost', 'eta', 'step', 'truth', 'mark', 'pair', 'h1', 'h2', 'h3', 'flip', 'acc', 'next', 'rest'];
+const REFS = ['guess', 'dJ', 'x', 'dots', 'ruler', 'xt', 'w', 'b', 'bulb', 'p', 'call', 'stairs', 'same', 'm1', 'm2', 'm3', 'L', 'loss', 'map', 'you', 'bottom', 'arrow', 'err', 'ghost', 'eta', 'step', 'truth', 'mark', 'pair', 'h1', 'h2', 'h3', 'flip', 'acc', 'next', 'rest'];
 (() => {
   const css = REFS.map(r => `body[data-hl~="${r}"] [data-ref~="${r}"]:not(svg *){outline-color:var(--copper);background-color:var(--copper-wash);animation:hlpulse .7s ease-out}` +
     `body[data-hl~="${r}"] svg [data-ref~="${r}"], body[data-hl~="${r}"] .katex [data-ref~="${r}"]{filter:drop-shadow(0 0 3px rgb(166 77 29 / 0.85))}` +
@@ -933,7 +982,7 @@ const COACH = {
   knobs: () => ({ to: '#knobs', below: true, text: 'Drag both sliders: w tilts the line, b slides it.' }),
   dimmer: () => ({ to: '#knobs', below: true, text: 'Now it bends into an S. Drag w and b until it rises through the dots.' }),
   surprise: () => ({ to: '#knobs', text: 'Drag a slider and watch J: it moves smoothly, while % right jumps.' }),
-  ask: () => ({ to: '#fbRow', below: true, text: 'Compare the model\'s call with the pathology above, then mark it.' }),
+  ask: () => ({ to: '#guessBox', below: true, text: 'Commit a guess, then see the step. The step happens either way.' }),
 };
 let coach = null, coachIdle = null;
 function showCoach(s, spec) {
@@ -945,8 +994,8 @@ function showCoach(s, spec) {
   t.classList.add('coach-on');
   // The way on lives in the guide's own status line.
   if (spec.to === '#kPlay') { $('phase').textContent = spec.text; $('phase').classList.add('go'); return; }
-  // Free play gets the ring only: the voice gives the instruction on its first case, and the loop is familiar after that.
-  if (s.free && s.ask) return;
+  // An ask gets the ring only: the guess box carries its own instruction.
+  if (s.ask) return;
   const n = coach.note = document.createElement('p'); n.className = 'coach'; n.setAttribute('role', 'status'); n.textContent = spec.text; t.after(n); fitDesk();
   const r = t.getBoundingClientRect(), bottom = window.innerHeight - (window.innerWidth < 720 ? $('guide').offsetHeight + 8 : 0);
   if (r.top < 60 || r.bottom + 40 > bottom) t.scrollIntoView({ block: 'center', behavior: motionOK() ? 'smooth' : 'auto' });
@@ -963,7 +1012,7 @@ function coachTried() {
 function chrome(s) {
   $('scrub').max = steps.length - 1; $('scrub').value = pos;
   $('stepN').textContent = s.stage === 'done' ? 'done' : pos >= YOUR_TURN ? 'free play' : `${pos + 1} / ${YOUR_TURN + 1}`;
-  $('phase').textContent = s.stage === 'done' ? 'Done · step back to replay any moment' : pos >= YOUR_TURN ? 'Your turn · each case is one step' : s.ask ? 'Mark the call · → marks it for you' : s.hands ? 'Try it, then press ▶ when ready' : `Guided · ${YOUR_TURN - pos} step${YOUR_TURN - pos === 1 ? '' : 's'} to your turn`;
+  $('phase').textContent = s.stage === 'done' ? 'Done · step back to replay any moment' : pos >= YOUR_TURN ? 'Your turn · each case is one step' : s.ask ? 'Guess first · → skips the guess' : s.hands ? 'Try it, then press ▶ when ready' : `Guided · ${YOUR_TURN - pos} step${YOUR_TURN - pos === 1 ? '' : 's'} to your turn`;
   $('kBack').disabled = pos === 0;
   $('kNext').disabled = s.stage === 'done';
   $('msg').hidden = true;
@@ -984,11 +1033,12 @@ function go(to, viaMark) {
 }
 const next = viaMark => go(pos + 1, viaMark);
 function back() { stopRun(); live = null; go(pos - 1); }
-function mark(saysRight) {
-  const s = steps[pos], c = caseView(worldAt(pos)); if (!s.ask) return;
-  if (saysRight === (c.call === c.y)) { next(true); return; }
-  const m = $('msg'); m.hidden = false; m.className = 'msg warn';
-  m.textContent = `Check the report: it says ${word(c.y)}, and the model said ${word(c.call)}. So the call is ${c.call === c.y ? 'right' : 'wrong'}.`;
+// A guess is recorded for the reader and the lesson moves to the reveal. It writes only to GUESSES.
+function guess(part, value) {
+  const s = steps[pos]; if (!s.ask) return;
+  const key = qKey(s.k, s.q), g = GUESSES[key] = (GUESSES[key] || []).slice(); g[part] = value;
+  stageEl().querySelectorAll(`[data-part="${part}"]`).forEach(b => b.setAttribute('aria-pressed', String(b.dataset.guess === value)));
+  if (Q[s.q].parts.every((_, i) => g[i])) next(true);
 }
 function runRest() {
   stop(); const w = worldAt(pos); if (w.n >= N) return;
@@ -1044,24 +1094,21 @@ function poster() {
 $('kSound').addEventListener('click', () => { gesture(); muted = !muted; store.set('teach-muted', muted ? '1' : '0'); setSoundUI(); if (run) { live = null; enter(); } });
 $('kReplay').addEventListener('click', () => { gesture(); live = null; enter(); });
 $('kRate').addEventListener('click', () => { rate = rate === 1 ? 1.25 : 1; store.set('teach-rate', String(rate)); setSoundUI(); if (run && run.el) run.el.playbackRate = rate; });
-$('kNext').addEventListener('click', () => { gesture(); next(steps[pos].ask); });
+$('kNext').addEventListener('click', () => { gesture(); next(); });
 $('kBack').addEventListener('click', () => { gesture(); back(); });
 $('kPlay').addEventListener('click', () => { gesture(); togglePlay(); });
 $('scrub').addEventListener('input', e => { gesture(); stop(); live = null; pos = +e.target.value; enter(); });
-$('bRight').addEventListener('click', () => { gesture(); mark(true); });
-$('bWrong').addEventListener('click', () => { gesture(); mark(false); });
 $('bNext').addEventListener('click', () => {
   gesture(); stop(); const s = steps[pos];
   if (steps[pos + 1] && steps[pos + 1].stage === 'done') { steps = steps.slice(0, pos + 1); worlds.length = steps.length; }
-  if (s.ask) { const m = $('msg'); m.hidden = false; m.className = 'msg'; m.textContent = 'Mark the call first, or press → to skip it. The model steps from the pathology label either way; your mark never feeds it.'; return; }
   next();
 });
 $('bAll').addEventListener('click', () => { gesture(); runRest(); });
-$('stage').addEventListener('click', e => { const b = e.target.closest('[data-eta]'); if (!b) return; const eta = b.dataset.eta; const tok = ++stageToken; loop(tok, t => { const n = Math.min(N, Math.round(t / 4 * N)); drawMap($('stageMap'), { id: 's3', bounds: [-1, 11, -7, 7], aspect: 0.6, bottom: true, start: true, paths: [{ pts: PATHS[eta], n, color: b.style.color, ref: b.dataset.ref, width: 2, dash: { dotted: '1.5 3', dashed: '5 3' }[b.dataset.dash] }] }); return n < N; }); });
+$('stage').addEventListener('click', e => { const gb = e.target.closest('[data-guess]'); if (gb) { gesture(); guess(+gb.dataset.part, gb.dataset.guess); return; } const b = e.target.closest('[data-eta]'); if (!b) return; const eta = b.dataset.eta; const tok = ++stageToken; loop(tok, t => { const n = Math.min(N, Math.round(t / 4 * N)); drawMap($('stageMap'), { id: 's3', bounds: [-1, 11, -7, 7], aspect: 0.6, bottom: true, start: true, paths: [{ pts: PATHS[eta], n, color: b.style.color, ref: b.dataset.ref, width: 2, dash: { dotted: '1.5 3', dashed: '5 3' }[b.dataset.dash] }] }); return n < N; }); });
 document.addEventListener('keydown', e => {
   if (e.metaKey || e.ctrlKey || e.altKey || e.target instanceof HTMLInputElement) return;
   if ($('detour').open) return;
-  if (e.key === 'ArrowRight') { e.preventDefault(); gesture(); next(steps[pos].ask); }
+  if (e.key === 'ArrowRight') { e.preventDefault(); gesture(); next(); }
   else if (e.key === 'ArrowLeft') { e.preventDefault(); gesture(); back(); }
   else if (e.key === ' ' && !(e.target instanceof HTMLButtonElement)) { e.preventDefault(); gesture(); togglePlay(); }
 });
