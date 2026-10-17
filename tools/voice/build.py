@@ -20,6 +20,17 @@ OUT = os.path.join(ROOT, 'docs/teach/voice.js')
 srcs = json.load(open(os.path.join(HERE, 'script.json')))
 
 
+# Captions show numbers as the screen prints them; the audio says them in words.
+DIGITS = [('Five hundred sixty-nine', '569'), ('five hundred sixty-nine', '569'), ('Point five six', '0.56'), ('Ninety-two percent', '92%'),
+          ('fourteen point six seven', '14.67'), ('fifteen point five one', '15.51'), ('fourteen point eight three', '14.83'),
+          ('eighty-eight point two percent', '88.2%'), ('Forty more', '40 more')]
+
+
+def caption_digits(h):
+    for a, b in DIGITS: h = h.replace(a, b)
+    return h
+
+
 def duration(cid):
     r = subprocess.run(['ffprobe', '-v', 'error', '-show_entries', 'format=duration', '-of', 'csv=p=0',
                         os.path.join(AUDIO, cid + '.mp3')], capture_output=True, text=True)
@@ -82,7 +93,7 @@ def build(cid, src):
                 if pb == j + 1 or (pb > b and j == b - 1 and pa < b): h += '</span>'
             j += 1
         sents.append([clamp(st[a]), re.sub(r'\s+', ' ', h).strip()])
-    E['s'] = sents
+    E['s'] = [[t, caption_digits(h)] for t, h in sents]
     return E
 
 
