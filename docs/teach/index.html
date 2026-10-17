@@ -196,7 +196,7 @@ svg .item.on { opacity: 1; }
 .aud { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
 .tbtn { appearance: none; border: 1px solid var(--rule); background: var(--sheet); border-radius: var(--r1); padding: 3px 8px; min-height: 24px; font: 500 12px/18px var(--sans); color: var(--ink-2); cursor: pointer; }
 .tbtn:hover { background: var(--wash); }
-#kSound[aria-pressed="false"] { color: var(--ink-3); text-decoration: line-through; }
+#kSound[aria-pressed="false"] { color: var(--ink-3); }
 kbd { font: 11px/1 var(--mono); padding: 2px 5px; border: 1px solid var(--rule); border-bottom-width: 2px; border-radius: var(--r1); background: var(--sheet); color: var(--ink-2); }
 .help { appearance: none; border: 1px solid var(--rule-strong); background: var(--sheet); width: 24px; height: 24px; border-radius: 50%; font: 600 12px/1 var(--sans); color: var(--ink-3); cursor: pointer; padding: 0; vertical-align: 2px; margin-left: 4px; }
 .help:hover { color: var(--ink); border-color: var(--ink); }
@@ -1067,7 +1067,7 @@ function advanceLater(s, ms) { clearTimer(); if (waitsForUser(s) || steps[pos].s
 
 // ---- Coach: when a step waits for the learner, a bubble names the move and the control pulses.
 const COACH = {
-  knobs: () => ({ to: '#knobs', below: true, text: 'Drag both sliders: w tilts the line, b slides it.' }),
+  knobs: () => ({ to: '#knobs', below: true, text: 'Drag both knobs: w tilts the line, b slides it.' }),
   dimmer: () => ({ to: '#knobs', below: true, text: 'Now it bends into an S. Drag w and b until it rises through the dots.' }),
   surprise: () => ({ to: '#knobs', text: 'Drag a slider and watch J: it moves smoothly, while % right jumps.' }),
   ask: () => ({ to: '#guessBox', below: true, text: 'Commit a guess, then see the step. The step happens either way.' }),
@@ -1152,7 +1152,7 @@ function togglePlay() {
   setPlayIcon();
 }
 function setPlayIcon() { const playing = busy(); $('playIcon').innerHTML = playing ? '<path d="M3.5 2.5h2.5v9H3.5zM8 2.5h2.5v9H8z" fill="currentColor"/>' : '<path d="M4 2.5v9l7.5-4.5z" fill="currentColor"/>'; $('kPlay').setAttribute('aria-label', playing ? 'Pause' : 'Play'); }
-function setSoundUI() { $('kSound').textContent = muted ? 'Sound off' : 'Sound on'; $('kSound').setAttribute('aria-pressed', String(!muted)); $('kRate').textContent = rate === 1 ? '1×' : '1.25×'; }
+function setSoundUI() { $('kSound').textContent = muted ? 'Sound: off' : 'Sound: on'; $('kSound').setAttribute('aria-pressed', String(!muted)); $('kRate').textContent = rate === 1 ? '1×' : '1.25×'; }
 function gesture() { unlocked = true; $('start').hidden = true; const pz = document.querySelector('.poster'); if (pz) pz.remove(); }
 
 // Knobs belong to the reader until the model takes over.
