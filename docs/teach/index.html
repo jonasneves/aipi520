@@ -117,11 +117,18 @@ svg { display: block; width: 100%; height: auto; overflow: visible; }
 .stats div { display: flex; flex-direction: column; padding: 0 4px; margin-left: -4px; }
 .stats b { font: 600 18px/22px var(--sans); font-variant-numeric: tabular-nums; }
 .stats span { font: 400 11px/16px var(--sans); color: var(--ink-3); }
+.cmp { display: flex; flex-direction: column; gap: 6px; }
+#stageCmp { cursor: crosshair; }
+.cmpctl { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; font: 400 13px/20px var(--sans); color: var(--ink-2); }
+.cmpctl .tbtn { min-height: 32px; min-width: 44px; }
+.cmpctl .tbtn[aria-pressed="true"] { background: var(--ink); color: var(--sheet); }
+#cmpOut { text-align: left; font-size: 13px; line-height: 19px; }
 .jstrip { margin-top: 6px; } .jstrip:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
 .mapbox .hits line { cursor: pointer; pointer-events: stroke; }
 
 /* Stage: one idea at a time, drawn large. */
 .stage { position: relative; background: var(--sheet); border: 1px solid var(--edge); border-radius: var(--r3); box-shadow: var(--shadow-2); min-height: 400px; padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; justify-content: center; overflow: hidden; }
+.stage.tight { gap: 8px; padding-top: 12px; padding-bottom: 12px; }
 .stage .item { opacity: 0; transform: translateY(10px) scale(0.98); transition: opacity 450ms var(--ease), transform 450ms var(--ease); }
 .stage .item.on { opacity: 1; transform: none; }
 .stage .item.gone { opacity: 0.0; }
@@ -190,7 +197,7 @@ svg .item.on { opacity: 1; }
 .aud { display: inline-flex; flex-wrap: wrap; align-items: center; gap: 4px 6px; }
 .tbtn { appearance: none; border: 1px solid var(--rule); background: var(--sheet); border-radius: var(--r1); padding: 3px 8px; min-height: 24px; font: 500 12px/18px var(--sans); color: var(--ink-2); cursor: pointer; }
 .tbtn:hover { background: var(--wash); }
-.tbtn[aria-pressed="false"] { color: var(--ink-3); text-decoration: line-through; }
+#kSound[aria-pressed="false"] { color: var(--ink-3); text-decoration: line-through; }
 kbd { font: 11px/1 var(--mono); padding: 2px 5px; border: 1px solid var(--rule); border-bottom-width: 2px; border-radius: var(--r1); background: var(--sheet); color: var(--ink-2); }
 .help { appearance: none; border: 1px solid var(--rule-strong); background: var(--sheet); width: 24px; height: 24px; border-radius: 50%; font: 600 12px/1 var(--sans); color: var(--ink-3); cursor: pointer; padding: 0; vertical-align: 2px; margin-left: 4px; }
 .help:hover { color: var(--ink); border-color: var(--ink); }
@@ -687,12 +694,12 @@ const pickable = () => pos >= YOUR_TURN && !!live && live.n !== null && live.n >
 function drawStrip(n) {
   const svg = $('jstrip'); svg.textContent = '';
   svg.hidden = !(n >= 1); if (svg.hidden) return;
-  const Wd = Math.max(240, Math.round(svg.getBoundingClientRect().width) || 300), H = 42, L = 4, R = Wd - 4, T = 3, B = 24;
+  const Wd = Math.max(240, Math.round(svg.getBoundingClientRect().width) || 300), H = 42, L = 4, R = Wd - 4, T = 3, B = 21;
   svg.setAttribute('viewBox', `0 0 ${Wd} ${H}`);
   const span = Math.max(n, 60), x = k => L + k / span * (R - L), y = J => B - (Math.min(0.7, J) - 0.28) / (0.7 - 0.28) * (B - T);
   let d = ''; for (let k = 0; k <= n; k++) d += (d ? 'L' : 'M') + x(k).toFixed(1) + ' ' + y(JPATH[k]).toFixed(1);
   el('path', { d, fill: 'none', stroke: 'var(--ink)', 'stroke-width': 1.4, 'data-ref': 'step' }, svg);
-  let up = '', ups = 0; for (let k = 0; k < n; k++) if (JPATH[k + 1] > JPATH[k]) { ups++; up += `M${x(k + 0.5).toFixed(1)} ${B + 4}v5`; }
+  let up = '', ups = 0; for (let k = 0; k < n; k++) if (JPATH[k + 1] > JPATH[k]) { ups++; up += `M${x(k + 0.5).toFixed(1)} ${B + 2}v5`; }
   el('path', { d: up, stroke: 'var(--ink-3)', 'stroke-width': 1, 'data-ref': 'uphill' }, svg);
   if (inspectK !== null && pickable() && inspectK < n) el('line', { x1: x(inspectK + 0.5), x2: x(inspectK + 0.5), y1: T, y2: B + 9, stroke: 'var(--ink)', 'stroke-width': 1.5 }, svg);
   el('text', { x: L, y: H - 2, class: 'cap' }, svg).textContent = `J after each footstep · ticks: ${ups} of ${n} raised it`;
@@ -712,6 +719,28 @@ $('jstrip').addEventListener('keydown', e => {
   if (!pickable()) return; const k = inspectK ?? live.n - 1;
   const d = { ArrowLeft: -1, ArrowRight: 1, PageDown: -25, PageUp: 25 }[e.key]; if (d === undefined) return;
   e.preventDefault(); e.stopPropagation(); inspect(k + d);
+});
+
+// ---- At the end: a second run from a start and step size the reader picks, beside the baseline run.
+const cmp = { start: null, eta: 0.5 }, cmpMemo = new Map();
+const cmpStart = () => cmp.start || (handFit() ? [handFit().w, handFit().b] : [0, 0]);
+function cmpPath() { const st = cmpStart(), key = st.join() + '@' + cmp.eta; if (!cmpMemo.has(key)) cmpMemo.set(key, sgd(cmp.eta, st).P); return cmpMemo.get(key); }
+function drawCmp() {
+  const host = $('stageCmp'); if (!host) return;
+  const P2 = cmpPath(), st = cmpStart();
+  const svg = drawMap(host, { id: 'c', bounds: PANEL_BD, aspect: 0.25, bottom: true, start: true, paths: [{ pts: P2, n: N, color: 'var(--ink-3)', width: 1.4, opacity: 0.9, dash: '4 3' }, { pts: PATH, n: N, width: 1.6, opacity: 0.85 }] });
+  const mx = w => (w - PANEL_BD[0]) / (PANEL_BD[1] - PANEL_BD[0]) * host.clientWidth, my = b => (PANEL_BD[3] - b) / (PANEL_BD[3] - PANEL_BD[2]) * host.clientHeight;
+  el('circle', { cx: mx(st[0]), cy: my(st[1]), r: 5, fill: 'var(--sheet)', stroke: 'var(--ink)', 'stroke-width': 2 }, svg);
+  el('text', { x: mx(st[0]) + 8, y: my(st[1]) - 6, class: 'tick halo' }, svg).textContent = 'second start';
+  const e = P2[N], s2 = stat(...e), s1 = stat(...PATH[N]);
+  $('cmpOut').innerHTML = `<b>Dashed</b>: from w = ${f(st[0])}, b = ${f(st[1])}, step size ${cmp.eta}, ends at w = ${f(e[0])}, b = ${f(e[1])}; J = ${s2.J.toFixed(3)}, ${pct(s2.acc)} right. <b>Solid</b>, the run above: ends at w = ${f(PATH[N][0])}, b = ${f(PATH[N][1])}; J = ${s1.J.toFixed(3)}, ${pct(s1.acc)}.`;
+}
+$('stage').addEventListener('click', e => {
+  const b = e.target.closest('[data-cmpeta]'); if (b) { cmp.eta = +b.dataset.cmpeta; $('stage').querySelectorAll('[data-cmpeta]').forEach(x => x.setAttribute('aria-pressed', String(x === b))); drawCmp(); return; }
+  const host = e.target.closest('#stageCmp'); if (!host) return;
+  const r = host.getBoundingClientRect(), bd = PANEL_BD;
+  cmp.start = [bd[0] + (e.clientX - r.left) / r.width * (bd[1] - bd[0]), bd[3] - (e.clientY - r.top) / r.height * (bd[3] - bd[2])].map(v => Math.round(v * 100) / 100);
+  drawCmp();
 });
 
 // ---- Animation of the model between two footstep counts (curve, map and case follow).
@@ -806,13 +835,14 @@ const SCENES = {
   fast: () => item(`<p class="s-title">40 more biopsies</p><p class="s-note">same loop each time: call, check, one step</p>`, 'fasttitle') + `<div class="mapbox" id="stageLive" data-ref="map"></div>`,
   pair: () => { const a = CASES[44], b = CASES[45]; return item(`<div class="meter" data-ref="pair"><div><span>biopsy ${a.k + 1} (radius ${f(a.x)}): sure and right</span><i style="transform:scaleX(${Math.max(0.004, a.len / b.len).toFixed(3)})"></i><b>${f(a.len, 4)}</b></div><div><span>biopsy ${b.k + 1} (radius ${f(b.x)}): sure and wrong</span><i style="transform:scaleX(1)"></i><b>${f(b.len)}</b></div></div><p class="s-note">length of each step</p>`, 'pair', 'pair'); },
   three: () => `<div class="mapbox item" data-item="three" id="stageMap"></div><div class="legend3 item" data-item="legend">${[['h1', 0.05, 'var(--ink-2)', 'step size 0.05: creeps', 'dotted'], ['h2', 0.5, 'var(--ink)', '0.5: ends near the bottom', 'solid'], ['h3', 5, 'var(--ink-3)', '5: overshoots', 'dashed']].map(([r, e, c, t, ls]) => `<button type="button" data-ref="${r}" data-eta="${e}" data-dash="${ls}" style="color:${c}"><i style="border-top-style:${ls}"></i>${t}</button>`).join('')}</div>`,
-  done: () => item(`<div class="s-card"><span class="label">after all 569 footsteps</span><div class="s-big" data-ref="flip">flip radius ${f(flipOf(...PATH[N]))}</div><div class="s-note" data-ref="acc">${pct(stat(...PATH[N]).acc)} right · J = ${stat(...PATH[N]).J.toFixed(3)}</div><div class="s-note">bottom of the valley (all 569 at once): flip radius ${f(flipOf(BEST.w, BEST.b))}, ${pct(stat(BEST.w, BEST.b).acc)}, J = ${stat(BEST.w, BEST.b).J.toFixed(3)}</div>${handFit() ? `<div class="s-note">your best fit by hand: J = ${handFit().J.toFixed(3)}, ${pct(handFit().acc)}</div>` : ''}</div>`, 'final'),
+  done: () => { const e = stat(...PATH[N]), B = stat(BEST.w, BEST.b), h = handFit(); return item(`<div class="s-card" style="padding:8px 16px"><span class="label">after all 569 footsteps</span><div class="s-big" style="font-size:32px;line-height:38px" data-ref="flip">flip radius ${f(flipOf(...PATH[N]))}</div><div class="s-note" data-ref="acc">${pct(e.acc)} right on the 569 it learned from · J = ${e.J.toFixed(3)}</div><div class="s-note">bottom of the valley (all 569 at once): flip radius ${f(flipOf(BEST.w, BEST.b))}, ${pct(B.acc)}, J = ${B.J.toFixed(3)}</div>${h ? `<div class="s-note">your best fit by hand: J = ${h.J.toFixed(3)}, ${pct(h.acc)}</div>` : ''}</div>`, 'final') +
+    item(`<div class="cmp"><div class="mapbox" id="stageCmp" data-ref="map"></div><div class="cmpctl"><span>Run again, same 569 in the same order. Click the map for a start; step size:</span> ${[0.05, 0.5, 2].map(v => `<button class="tbtn" type="button" data-cmpeta="${v}" aria-pressed="${v === cmp.eta}">${v}</button>`).join(' ')}</div><p class="s-note" id="cmpOut" aria-live="polite"></p></div>`, 'cmp'); },
 };
 function dialHTML(id, gloss) { return `<div class="dial"><svg viewBox="0 0 74 74"><circle cx="37" cy="37" r="30" fill="var(--sheet)" stroke="var(--rule-strong)" stroke-width="2"/><line id="needle-${id}" x1="37" y1="37" x2="37" y2="12" stroke="var(--ink)" stroke-width="3" stroke-linecap="round"/></svg><b>${id} = <span id="dv-${id}">0</span></b><span>${gloss}</span></div>`; }
 
 function buildStage(s) {
   stageToken++;
-  const st = stageEl(); st.innerHTML = SCENES[s.stage] ? SCENES[s.stage](s) : '';
+  const st = stageEl(); st.innerHTML = SCENES[s.stage] ? SCENES[s.stage](s) : ''; st.classList.toggle('tight', s.stage === 'done');
   st.querySelectorAll('[data-tex]').forEach(e => texInto(e, e.dataset.tex));
   const xtf = st.querySelector('[data-dockfrom="xt"]'); if (xtf) texInto(xtf, '\\htmlClass{r-xt}{\\tilde x} = \\dfrac{x - \\text{average}}{\\text{sd}} = \\dfrac{17.85 - 14.13}{3.52} = +1.06');
   const named = new Set(clipsOf(s).flatMap(id => (VOICE[id].D || []).map(d => d[1])));
@@ -820,6 +850,7 @@ function buildStage(s) {
   if (s.stage === 'land' || s.stage === 'fog' || s.stage === 'three') stageMap(s, s.stage === 'three' ? 0 : undefined);
   if (s.stage === 'knobs') miniLine(0, 0);
   if ($('stageLive')) drawMapPanel(live);
+  if ($('stageCmp')) drawCmp();
   if (s.stage === 'dimmer') dimmerLoop();
 }
 function stageMap(s, nRace) {
