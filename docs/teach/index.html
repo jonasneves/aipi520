@@ -262,7 +262,7 @@ svg [data-ref] { transition: filter 350ms var(--ease); }
             <dt>Model's call</dt><dd><span id="callTxt" data-ref="p call"></span><div class="pbar"><i id="pfill"></i><b></b></div></dd>
             <dt>Pathology</dt><dd id="truth" data-ref="truth"></dd>
             <dt id="stepT">Step</dt><dd id="stepD"></dd>
-            <dt id="markT">Your guess</dt><dd id="mark" data-ref="guess"></dd>
+            <dt id="markT">Your guess</dt><dd id="mark" data-ref="guess mark"></dd>
           </dl>
           <div class="fb" id="freeRow" hidden>
             <button class="btn pri" id="bNext" type="button" data-ref="next">Next case</button>
@@ -805,7 +805,7 @@ function plotSVG(fn, o) {
 }
 function guessHTML(s) {
   const g = GUESSES[qKey(s.k, s.q)] || [];
-  return item(`<div class="guess" id="guessBox" data-ref="guess">${Q[s.q].parts.map((p, i) => `<div class="gq"><span class="gqt">${p.ask}</span><span class="gopts">${p.opts.map(([v, l]) => `<button class="btn" type="button" data-part="${i}" data-guess="${v}" aria-pressed="${g[i] === v}">${l}</button>`).join('')}</span></div>`).join('')}<p class="honest">${HONEST}</p></div>`, 'guessbox');
+  return item(`<div class="guess" id="guessBox" data-ref="guess mark">${Q[s.q].parts.map((p, i) => `<div class="gq"><span class="gqt">${p.ask}</span><span class="gopts">${p.opts.map(([v, l]) => `<button class="btn" type="button" data-part="${i}" data-guess="${v}" aria-pressed="${g[i] === v}">${l}</button>`).join('')}</span></div>`).join('')}<p class="honest">${HONEST}</p></div>`, 'guessbox');
 }
 function revealHTML(key) { const g = guessLine(key); return item(`<p class="s-note reveal" data-ref="guess"><b>${g.said ? `Your guess: ${g.said}. What happened: ${g.was}.` : `What happened: ${g.was}.`}</b> ${g.says}</p>`, 'reveal'); }
 const SCENES = {
