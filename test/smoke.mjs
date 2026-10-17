@@ -77,8 +77,9 @@ assert(CASES[45].len === Math.max(...CASES.slice(0, 46).map(c => c.len)), '"A co
 
 section('Uphill steps');
 eq(UPHILL, 288, 'footsteps that raise J');
+assert(Math.abs(UPHILL / N - 0.5) < 0.05, '"About half of them go uphill" (w0)');
 eq(CASES.filter(c => c.dJ > 0).length, 288, 'uphill count recomputed');
-assert(CASES.slice(0, 44).some(c => c.dJ > 0), '"Some even go uphill" (w0) is visible in the first 44 footsteps');
+assert(CASES.slice(0, 44).some(c => c.dJ > 0), 'uphill steps are visible in the first 44 footsteps');
 eq(JPATH.length, N + 1, 'J after each footstep');
 
 section('End of the pass');

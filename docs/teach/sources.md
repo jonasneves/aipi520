@@ -40,7 +40,7 @@ The reader's guesses are stored in `GUESSES` for display and nothing that comput
 | v09b | "one step downhill" | J 0.693 → 0.577 on the first footstep | ✓ |
 | w302 | "Point five six, and right … still a step" | `CASES[1]`: p = 0.560, call = y, step 0.432 | ✓ |
 | w84 | "Right again. A smaller step." | `CASES[2]`: call = y, step 0.230 < 0.432 | ✓ |
-| w0 | "Some even go uphill" | uphill steps occur among the first 44 | ✓ |
+| w0 | "About half of them go uphill" | 288 of 569 footsteps raise J (51%) | ✓ |
 | w212, g16 | "Very sure, and right … it barely moved" | `CASES[44]`: p > 0.999, step 0.00006 (tiny, not zero) | ✓ |
 | w491 | "Ninety-two percent sure: malignant. The report says benign." | `CASES[45]`: p = 0.921, y = 0 | ✓ |
 | g18 | flip point 14.67 → 15.51 | `flipOf(PATH[45])`, `flipOf(PATH[46])` | ✓ |
