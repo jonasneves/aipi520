@@ -77,7 +77,7 @@ header p { font: 400 16px/24px var(--serif); color: var(--ink-2); margin: 0; }
 .rows2 { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 4px 12px; align-items: baseline; font: 400 14px/22px var(--sans); margin: 0; }
 .rows2 dt { color: var(--ink-3); } .rows2 dd { margin: 0; min-width: 0; }
 .pbar { position: relative; height: 6px; border-radius: 3px; background: var(--wash); margin-top: 4px; overflow: hidden; max-width: 220px; }
-.pbar i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--copper); border-radius: 3px; }
+.pbar i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--ink-2); border-radius: 3px; }
 .pbar b { position: absolute; left: 50%; top: -2px; bottom: -2px; width: 1px; background: var(--ink-3); }
 .pbar { overflow: visible; margin-bottom: 12px; } .pbar b::after { content: "0.5"; position: absolute; top: 9px; left: 50%; transform: translateX(-50%); font: 400 10px/1 var(--sans); color: var(--ink-3); }
 .idle { color: var(--ink-3); }
@@ -117,7 +117,8 @@ svg { display: block; width: 100%; height: auto; overflow: visible; }
 .stats div { display: flex; flex-direction: column; padding: 0 4px; margin-left: -4px; }
 .stats b { font: 600 18px/22px var(--sans); font-variant-numeric: tabular-nums; }
 .stats span { font: 400 11px/16px var(--sans); color: var(--ink-3); }
-.callback { font: 400 13px/20px var(--sans); color: var(--ink-2); margin: 8px 0 0; }
+.jstrip { margin-top: 6px; } .jstrip:focus-visible { outline: 2px solid var(--ink); outline-offset: 2px; }
+.mapbox .hits line { cursor: pointer; pointer-events: stroke; }
 
 /* Stage: one idea at a time, drawn large. */
 .stage { position: relative; background: var(--sheet); border: 1px solid var(--edge); border-radius: var(--r3); box-shadow: var(--shadow-2); min-height: 400px; padding: 20px 24px; display: flex; flex-direction: column; gap: 14px; justify-content: center; overflow: hidden; }
@@ -142,7 +143,7 @@ svg .item.on { opacity: 1; }
 .meter > div { display: contents; }
 .meter span { font: 400 14px/20px var(--sans); color: var(--ink-2); padding: 2px 4px; border-radius: 4px; }
 .meter [data-ref] { outline-offset: 1px; }
-.meter i { display: block; height: 14px; background: var(--copper); border-radius: 3px; transform-origin: left; }
+.meter i { display: block; height: 14px; background: var(--ink-3); border-radius: 3px; transform-origin: left; }
 .meter b { font: 500 14px/20px var(--mono); text-align: right; }
 .factors { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; }
 .factor { border: 1px solid var(--rule); border-radius: var(--r2); padding: 6px 12px; text-align: center; font: 400 13px/18px var(--sans); color: var(--ink-2); }
@@ -253,6 +254,7 @@ svg [data-ref] { transition: filter 350ms var(--ease); }
           <dl class="rows2">
             <dt>Model's call</dt><dd><span id="callTxt" data-ref="p call"></span><div class="pbar"><i id="pfill"></i><b></b></div></dd>
             <dt>Pathology</dt><dd id="truth" data-ref="truth"></dd>
+            <dt id="stepT">Step</dt><dd id="stepD"></dd>
             <dt id="markT">Your guess</dt><dd id="mark" data-ref="guess"></dd>
           </dl>
           <div class="fb" id="freeRow" hidden>
@@ -312,12 +314,12 @@ svg [data-ref] { transition: filter 350ms var(--ease); }
         <div class="tb"><div class="tt"><span class="dot"></span>Map</div><span class="label">average surprise J for every w, b</span></div>
         <div class="wc">
           <div class="mapbox" id="mapPanel" data-ref="map"></div>
+          <svg id="jstrip" class="jstrip" viewBox="0 0 300 42" role="img" aria-label="Average surprise J after each footstep"></svg>
           <div class="stats">
             <div><b id="mJ"></b><span>average surprise J</span></div>
             <div data-ref="acc"><b id="mAcc"></b><span>called right, of 569</span></div>
             <div data-ref="flip"><b id="mFlip"></b><span>flip radius</span></div>
           </div>
-          <p class="callback" id="callback" hidden></p>
         </div>
       </section>
     </div>
@@ -475,8 +477,12 @@ function renderChips(w) {
 let chipsH = 0;
 function renderCase(w, s) {
   $('wCase').hidden = !w.panels.includes('case');
-  const c = caseView(w), lv = LEVELS[w.level];
-  $('caseNo').textContent = w.level === 'none' ? (w.n >= N ? `Learned from all ${N} biopsies` : `Learned from ${w.n} biopsies`) : w.n === null || c.k > w.n ? 'An example biopsy' : `Biopsy ${c.k + 1} of ${N}`;
+  // A footstep picked on the Map or the J strip shows that biopsy as the model met it, with its step.
+  const ins = inspectK !== null && pickable(), c = ins ? CASES[inspectK] : caseView(w), lv = ins ? 4 : LEVELS[w.level];
+  const stepped = ins || (lv >= 4 && w.n !== null && w.n > c.k);
+  $('stepT').hidden = $('stepD').hidden = !stepped;
+  if (stepped) $('stepD').innerHTML = `Δw ${fs(c.dw, 3)} · Δb ${fs(c.db, 3)}<br><span data-ref="dJ">J ${c.J0.toFixed(4)} → ${c.J1.toFixed(4)} (${c.dJ > 0 ? 'up' : 'down'})</span>`;
+  $('caseNo').textContent = ins ? `Footstep ${c.k + 1} of ${N}, picked` : w.level === 'none' ? (w.n >= N ? `Learned from all ${N} biopsies` : `Learned from ${w.n} biopsies`) : w.n === null || c.k > w.n ? 'An example biopsy' : `Biopsy ${c.k + 1} of ${N}`;
   $('caseR').innerHTML = lv >= 1 ? `${f(c.x)}<small>mean radius</small>` : '';
   $('wCase').querySelector('.rows2').hidden = lv === 0;
   const seen = lv >= 2;
@@ -485,7 +491,7 @@ function renderCase(w, s) {
   $('pfill').style.width = seen ? (c.p * 100).toFixed(1) + '%' : '0%';
   $('truth').innerHTML = lv >= 3 ? `${dx(c.y)} (y = ${c.y})` : lv >= 2 ? dx(c.y) : '·';
   // The guess row: waiting while the step asks, then the reader's guess beside what happened.
-  const showG = !!w.q && w.level !== 'none';
+  const showG = !ins && !!w.q && w.level !== 'none';
   $('markT').hidden = $('mark').hidden = !showG;
   if (showG) { const g = guessLine(w.q); $('mark').innerHTML = s && s.ask ? '<span class="idle">waiting for your guess</span>' : `<span class="mchip">you: ${g.said || 'no guess'}</span> <span class="mchip">${g.was}</span>`; }
   $('freeRow').hidden = pos < YOUR_TURN || w.n >= N;
@@ -516,20 +522,20 @@ function drawCurve(w, wb) {
     let d = '';
     for (let r = 6; r <= 30.001; r += 0.25) { const z = mw * (r - MU) / SD + mb, v = w.curve.mode === 'line' ? 0.5 + z / 8 : sig(z); d += (d ? 'L' : 'M') + cx(r).toFixed(1) + ' ' + cy(v).toFixed(1); }
     const clip = el('clipPath', { id: 'cclip' }, el('defs', {}, svg)); el('rect', { x: L, y: T - 2, width: R - L, height: Bt - T + 4 }, clip);
-    el('path', { d, fill: 'none', stroke: 'var(--copper)', 'stroke-width': 2.25, 'data-ref': 'curve', 'clip-path': 'url(#cclip)' }, svg);
+    el('path', { d, fill: 'none', stroke: 'var(--ink)', 'stroke-width': 2.25, 'data-ref': 'curve', 'clip-path': 'url(#cclip)' }, svg);
     const fr = flipOf(mw, mb);
     if (w.curve.mode === 'S' && fr >= 6 && fr <= 30) {
       const g = el('g', { 'data-ref': 'flip' }, svg);
-      el('line', { x1: cx(fr), x2: cx(fr), y1: cy(0.5), y2: Bt, stroke: 'var(--copper)', 'stroke-dasharray': '2 3' }, g);
-      el('text', { x: cx(fr) + 6, y: Bt - 22, class: 'tick halo', style: 'fill:var(--copper)' }, g).textContent = 'flip radius ' + f(fr) + (mw < 0 ? ' (malignant below)' : '');
+      el('line', { x1: cx(fr), x2: cx(fr), y1: cy(0.5), y2: Bt, stroke: 'var(--ink)', 'stroke-dasharray': '2 3' }, g);
+      el('text', { x: cx(fr) + 6, y: Bt - 22, class: 'tick halo', style: 'fill:var(--ink)' }, g).textContent = 'flip radius ' + f(fr) + (mw < 0 ? ' (malignant below)' : '');
     }
   }
   if (LEVELS[w.level] >= 1 && w.curve.mode !== 'none') {
     const c = caseView(w);
-    el('line', { x1: cx(c.x), x2: cx(c.x), y1: T, y2: Bt, stroke: 'var(--copper-line)', 'data-ref': 'x' }, svg);
+    el('line', { x1: cx(c.x), x2: cx(c.x), y1: T, y2: Bt, stroke: 'var(--rule-strong)', 'data-ref': 'x' }, svg);
     if (w.curve.mode === 'S' && LEVELS[w.level] >= 2) {
       const before = w.level === 'upd';
-      el('circle', { cx: cx(c.x), cy: cy(c.p), r: 4.5, fill: before ? 'var(--sheet)' : 'var(--copper)', stroke: 'var(--copper)', 'stroke-width': 1.5, 'data-ref': 'p' }, svg);
+      el('circle', { cx: cx(c.x), cy: cy(c.p), r: 4.5, fill: before ? 'var(--sheet)' : 'var(--ink)', stroke: 'var(--ink)', 'stroke-width': 1.5, 'data-ref': 'p' }, svg);
       if (before) $('curveTag').textContent = 'p(malignant) by radius · ○ p before this step';
     }
   }
@@ -602,9 +608,21 @@ function drawMap(host, opts) {
   if (opts.you && hf0) { const y = g({ 'data-ref': 'you', class: opts.items ? 'item' : '', 'data-item': opts.items ? 'you' : undefined }); el('circle', { cx: mx(hf.w), cy: my(hf.b), r: 6, fill: 'none', stroke: 'var(--ink)', 'stroke-width': 2 }, y); const near = Math.hypot(mx(hf.w) - mx(0), my(hf.b) - my(0)) < 40; el('text', { x: mx(hf.w) + 9, y: my(hf.b) + (near ? 18 : -6), class: 'tick halo', style: 'fill:var(--ink)' }, y).textContent = 'your fit'; }
   for (const p of opts.paths || []) {
     const n = Math.min(p.n, p.pts.length - 1); if (n <= 0) continue;
-    let d = ''; for (let k = 0; k <= n; k++) { const [w, b] = p.pts[k]; d += (d ? 'L' : 'M') + mx(Math.max(bd[0] - 1, Math.min(bd[1] + 1, w))).toFixed(1) + ' ' + my(Math.max(bd[2] - 1, Math.min(bd[3] + 1, b))).toFixed(1); }
-    el('path', { d, fill: 'none', stroke: p.color || 'var(--copper)', 'stroke-width': p.width || 1.6, 'stroke-linejoin': 'round', 'data-ref': p.ref || 'step', 'stroke-opacity': p.opacity ?? 0.9, 'stroke-dasharray': p.dash, 'stroke-linecap': p.dash ? 'round' : undefined }, svg);
-    if (n <= 60 && !p.opacity) for (let k = 1; k <= n; k++) el('circle', { cx: mx(p.pts[k][0]), cy: my(p.pts[k][1]), r: 1.8, fill: p.color || 'var(--copper)' }, svg);
+    const P = k => { const [w, b] = p.pts[k]; return mx(Math.max(bd[0] - 1, Math.min(bd[1] + 1, w))).toFixed(1) + ' ' + my(Math.max(bd[2] - 1, Math.min(bd[3] + 1, b))).toFixed(1); };
+    if (p.split) {
+      // The baseline run, footstep by footstep: solid where the step lowered the average surprise J, dotted where it raised it.
+      let dn = '', upd = '';
+      for (let k = 0; k < n; k++) { const seg = 'M' + P(k) + 'L' + P(k + 1); if (JPATH[k + 1] > JPATH[k]) upd += seg; else dn += seg; }
+      el('path', { d: dn, fill: 'none', stroke: 'var(--ink)', 'stroke-width': p.width || 1.6, 'stroke-linecap': 'round', 'data-ref': 'step', 'stroke-opacity': 0.85 }, svg);
+      el('path', { d: upd, fill: 'none', stroke: 'var(--ink)', 'stroke-width': p.width || 1.6, 'stroke-linecap': 'round', 'stroke-dasharray': '0.5 3', 'data-ref': 'step uphill', 'stroke-opacity': 0.95 }, svg);
+      if (opts.sel != null && opts.sel < n) { el('path', { d: 'M' + P(opts.sel) + 'L' + P(opts.sel + 1), stroke: 'var(--ink)', 'stroke-width': 4, 'stroke-linecap': 'round' }, svg); el('circle', { cx: P(opts.sel + 1).split(' ')[0], cy: P(opts.sel + 1).split(' ')[1], r: 4, fill: 'var(--sheet)', stroke: 'var(--ink)', 'stroke-width': 2 }, svg); }
+      if (opts.pick) { const hit = el('g', { class: 'hits' }, svg); for (let k = 0; k < n; k++) { const [x1, y1] = P(k).split(' '), [x2, y2] = P(k + 1).split(' '); el('line', { x1, y1, x2, y2, 'data-k': k, stroke: 'transparent', 'stroke-width': 9 }, hit); } }
+      if (n <= 60) for (let k = 1; k <= n; k++) el('circle', { cx: mx(p.pts[k][0]), cy: my(p.pts[k][1]), r: 1.8, fill: 'var(--ink)' }, svg);
+      continue;
+    }
+    let d = ''; for (let k = 0; k <= n; k++) d += (d ? 'L' : 'M') + P(k);
+    el('path', { d, fill: 'none', stroke: p.color || 'var(--ink)', 'stroke-width': p.width || 1.6, 'stroke-linejoin': 'round', 'data-ref': p.ref || 'step', 'stroke-opacity': p.opacity ?? 0.9, 'stroke-dasharray': p.dash, 'stroke-linecap': p.dash ? 'round' : undefined }, svg);
+    if (n <= 60 && !p.opacity) for (let k = 1; k <= n; k++) el('circle', { cx: mx(p.pts[k][0]), cy: my(p.pts[k][1]), r: 1.8, fill: p.color || 'var(--ink)' }, svg);
   }
   // Landmarks stay readable above the paths that run through them.
   svg.querySelectorAll(':scope > g[data-ref="bottom"], :scope > g[data-ref="you"]').forEach(k => svg.appendChild(k));
@@ -618,17 +636,24 @@ function drawMap(host, opts) {
       el('rect', { x: 0, y: 0, width: Wd, height: H, fill: '#efe9de', 'fill-opacity': 0.94, mask: `url(#fogm${opts.id})`, class: opts.items ? 'item' : '', 'data-item': opts.items ? 'fogveil' : undefined }, svg);
     }
     if (opts.arrow) {
-      const e = 1e-3, gw = (Jof(w + e, b) - Jof(w - e, b)) / (2 * e), gb = (Jof(w, b + e) - Jof(w, b - e)) / (2 * e);
-      const dx = -gw / (bd[1] - bd[0]) * Wd, dy = gb / (bd[3] - bd[2]) * H, len = Math.hypot(dx, dy) || 1, L = 38;
+      // Directions of steps from here: one biopsy's step each (thin, the first eight in the teaching order), and the direction
+      // of their average over all 569 (thick), which is the full-dataset downhill: the average of η(y − p)(x̃, 1) is −η × slope of J.
+      const stepOf = i => { const p = sig(w * X[i] + b), e = ETA * (Yv[i] - p); return [e * X[i], e]; };
+      const avg = [0, 0]; for (let i = 0; i < N; i++) { const [a1, a2] = stepOf(i); avg[0] += a1 / N; avg[1] += a2 / N; }
+      const px = ([dw, db]) => [dw / (bd[1] - bd[0]) * Wd, -db / (bd[3] - bd[2]) * H];
+      const few = ORDER.slice(0, 8).map(stepOf);
+      const arrow = (grp, v, width, color, head, len = 40) => { const [dx, dy] = px(v), k = len / (Math.hypot(dx, dy) || 1), ex = hx + dx * k, ey = hy + dy * k, ang = Math.atan2(ey - hy, ex - hx);
+        el('line', { x1: hx, y1: hy, x2: ex, y2: ey, stroke: color, 'stroke-width': width, 'stroke-linecap': 'round' }, grp);
+        el('path', { d: `M${ex} ${ey}L${ex - head * Math.cos(ang - 0.45)} ${ey - head * Math.sin(ang - 0.45)}L${ex - head * Math.cos(ang + 0.45)} ${ey - head * Math.sin(ang + 0.45)}z`, fill: color }, grp); return [ex, ey]; };
+      const one = g({ 'data-ref': 'one', class: opts.items ? 'item' : '', 'data-item': opts.items ? 'one' : undefined });
+      let lab = null; few.forEach((v, j) => { const e = arrow(one, v, 1.2, 'var(--ink-3)', 6); if (!lab || e[1] > lab[1]) lab = e; });
+      el('text', { x: lab[0] + 4, y: lab[1] + 12, class: 'tick halo' }, one).textContent = 'one biopsy each';
       const a = g({ 'data-ref': 'arrow', class: opts.items ? 'item' : '', 'data-item': opts.items ? 'arrow' : undefined });
-      const ex = hx + dx / len * L, ey = hy + dy / len * L;
-      el('line', { x1: hx, y1: hy, x2: ex, y2: ey, stroke: 'var(--copper)', 'stroke-width': 2.5 }, a);
-      const ang = Math.atan2(ey - hy, ex - hx);
-      el('path', { d: `M${ex} ${ey}L${ex - 8 * Math.cos(ang - 0.45)} ${ey - 8 * Math.sin(ang - 0.45)}L${ex - 8 * Math.cos(ang + 0.45)} ${ey - 8 * Math.sin(ang + 0.45)}z`, fill: 'var(--copper)' }, a);
-      el('text', { x: ex + 6, y: ey + 4, class: 'tick', style: 'fill:var(--copper)' }, a).textContent = 'downhill';
+      const [ex, ey] = arrow(a, avg, 2.75, 'var(--ink)', 9, 54);
+      el('text', { x: ex + 6, y: ey - 6, class: 'tick halo', style: 'fill:var(--ink)' }, a).textContent = 'all 569: downhill';
     }
     const hk = g({ 'data-ref': 'step map', 'data-hiker': '1' });
-    el('circle', { cx: hx, cy: hy, r: 6, fill: 'var(--copper)', stroke: 'var(--sheet)', 'stroke-width': 2 }, hk);
+    el('circle', { cx: hx, cy: hy, r: 6, fill: 'var(--ink)', stroke: 'var(--sheet)', 'stroke-width': 2 }, hk);
   }
   return svg;
 }
@@ -639,24 +664,55 @@ function fitDesk() {
   if (window.innerWidth < 1100 || !live || $('wMap').hidden) { if (mapAspect !== 0.58) { mapAspect = 0.58; if (live) drawMapPanel(live); } return; }
   const host = $('mapPanel'), wd = host.clientWidth; if (!wd) return;
   const bottom = Math.max($('wMap').getBoundingClientRect().bottom, $('wCase').hidden ? 0 : $('wCase').getBoundingClientRect().bottom) + window.scrollY;
-  const want = Math.max(wd * 0.36, Math.min(wd * 0.58, host.offsetHeight - (bottom + 12 - window.innerHeight)));
+  const want = Math.max(wd * 0.3, Math.min(wd * 0.58, host.offsetHeight - (bottom + 12 - window.innerHeight)));
   if (Math.abs(want - host.offsetHeight) < 3) return;
   mapAspect = want / wd; drawMapPanel(live);
 }
 function drawMapPanel(w, nShow) {
   const sl = $('stageLive'), nn = nShow ?? w.n;
-  if (sl && nn !== null) drawMap(sl, { id: 'l', bounds: PANEL_BD, aspect: 0.5, bottom: true, start: true, you: true, hiker: PATH[nn], paths: nn ? [{ pts: PATH, n: nn, width: 2 }] : [] });
+  if (sl && nn !== null) drawMap(sl, { id: 'l', bounds: PANEL_BD, aspect: +(sl.dataset.aspect || 0.5), bottom: true, start: true, you: true, hiker: PATH[nn], paths: nn ? [{ pts: PATH, n: nn, width: 2, split: true }] : [] });
   $('wMap').hidden = !w.panels.includes('map');
   if ($('wMap').hidden) return;
   const n = nShow ?? w.n;
-  drawMap($('mapPanel'), { id: 'p', bounds: PANEL_BD, aspect: mapAspect, bottom: w.map.bottom, you: w.map.you, start: true, hiker: w.map.hiker && n !== null ? PATH[n] : null, paths: n ? [{ pts: PATH, n }] : [] });
+  drawMap($('mapPanel'), { id: 'p', bounds: PANEL_BD, aspect: mapAspect, bottom: w.map.bottom, you: w.map.you, start: true, hiker: w.map.hiker && n !== null ? PATH[n] : null, paths: n ? [{ pts: PATH, n, split: true }] : [], pick: pickable(), sel: inspectK });
+  drawStrip(n);
   const [mw, mb] = n === null ? [knob.w, knob.b] : PATH[n], st = stat(mw, mb);
   $('mJ').textContent = st.J.toFixed(3); $('mAcc').textContent = pct(st.acc); $('mFlip').textContent = isNaN(flipOf(mw, mb)) ? '·' : f(flipOf(mw, mb));
-  const cb = $('callback');
-  const hf = handFit();
-  cb.hidden = !(n >= 4);
-  if (!cb.hidden) cb.textContent = (hf ? `Your best fit by hand scored J = ${hf.J.toFixed(3)} (${pct(hf.acc)} right). ` : 'You left the knobs untouched. ') + `The footsteps ${n >= N ? 'reached' : 'now reach'} J = ${st.J.toFixed(3)} (${pct(st.acc)}).`;
 }
+
+// ---- J after each footstep, under the Map: the line is the baseline run, ticks mark the steps that raised J.
+// In free play and at the end, a footstep can be picked here or on the Map path; the Case panel shows it.
+let inspectK = null;
+const pickable = () => pos >= YOUR_TURN && !!live && live.n !== null && live.n >= 1;
+function drawStrip(n) {
+  const svg = $('jstrip'); svg.textContent = '';
+  svg.hidden = !(n >= 1); if (svg.hidden) return;
+  const Wd = Math.max(240, Math.round(svg.getBoundingClientRect().width) || 300), H = 42, L = 4, R = Wd - 4, T = 3, B = 24;
+  svg.setAttribute('viewBox', `0 0 ${Wd} ${H}`);
+  const span = Math.max(n, 60), x = k => L + k / span * (R - L), y = J => B - (Math.min(0.7, J) - 0.28) / (0.7 - 0.28) * (B - T);
+  let d = ''; for (let k = 0; k <= n; k++) d += (d ? 'L' : 'M') + x(k).toFixed(1) + ' ' + y(JPATH[k]).toFixed(1);
+  el('path', { d, fill: 'none', stroke: 'var(--ink)', 'stroke-width': 1.4, 'data-ref': 'step' }, svg);
+  let up = '', ups = 0; for (let k = 0; k < n; k++) if (JPATH[k + 1] > JPATH[k]) { ups++; up += `M${x(k + 0.5).toFixed(1)} ${B + 4}v5`; }
+  el('path', { d: up, stroke: 'var(--ink-3)', 'stroke-width': 1, 'data-ref': 'uphill' }, svg);
+  if (inspectK !== null && pickable() && inspectK < n) el('line', { x1: x(inspectK + 0.5), x2: x(inspectK + 0.5), y1: T, y2: B + 9, stroke: 'var(--ink)', 'stroke-width': 1.5 }, svg);
+  el('text', { x: L, y: H - 2, class: 'cap' }, svg).textContent = `J after each footstep · ticks: ${ups} of ${n} raised it`;
+  svg.setAttribute('aria-label', `Average surprise J after each of ${n} footsteps: ${JPATH[0].toFixed(3)} to ${JPATH[n].toFixed(3)}; ${ups} of the ${n} steps raised it.` + (pickable() ? ' Arrow keys pick a footstep.' : ''));
+  svg.setAttribute('tabindex', pickable() ? '0' : '-1'); svg.style.cursor = pickable() ? 'pointer' : '';
+}
+function inspect(k) {
+  if (!pickable()) return;
+  inspectK = Math.max(0, Math.min(live.n - 1, k));
+  renderCase(live, steps[pos]); drawMapPanel(live);
+  const c = CASES[inspectK];
+  $('live').textContent = `Footstep ${c.k + 1}: radius ${f(c.x)}, ${word(c.y)}, p = ${fp(c.p)}. Δw ${fs(c.dw, 3)}, Δb ${fs(c.db, 3)}; J went ${c.dJ > 0 ? 'up' : 'down'}, ${c.J0.toFixed(4)} to ${c.J1.toFixed(4)}.`;
+}
+$('mapPanel').addEventListener('click', e => { const h = e.target.closest('[data-k]'); if (h) inspect(+h.dataset.k); });
+$('jstrip').addEventListener('click', e => { if (!pickable()) return; const r = $('jstrip').getBoundingClientRect(); inspect(Math.floor((e.clientX - r.left - 4) / (r.width - 8) * Math.max(live.n, 60))); });
+$('jstrip').addEventListener('keydown', e => {
+  if (!pickable()) return; const k = inspectK ?? live.n - 1;
+  const d = { ArrowLeft: -1, ArrowRight: 1, PageDown: -25, PageUp: 25 }[e.key]; if (d === undefined) return;
+  e.preventDefault(); e.stopPropagation(); inspect(k + d);
+});
 
 // ---- Animation of the model between two footstep counts (curve, map and case follow).
 let anim = null;
@@ -702,8 +758,8 @@ function dotsSVG(o = {}) {
   for (const r of [10, 15, 20, 25]) s += `<text x="${cx(r)}" y="${H - 14}" text-anchor="middle" class="tick">${r}</text>`;
   if (o.ruler) {
     s += `<g class="item" data-item="ruler" data-ref="ruler">`;
-    for (let k = -2; k <= 4; k++) { const r = MU + k * SD; if (r < 6 || r > 30) continue; s += `<line x1="${cx(r)}" x2="${cx(r)}" y1="${H - 30}" y2="${H - 40}" stroke="var(--copper)" stroke-width="2"/><text x="${cx(r)}" y="${H - 44}" text-anchor="middle" class="tick" style="fill:var(--copper)">${k > 0 ? '+' : ''}${M(String(k))}</text>`; }
-    s += `<line x1="${cx(MU)}" x2="${cx(MU + SD)}" y1="${H - 35}" y2="${H - 35}" stroke="var(--copper)" stroke-width="3"/></g>`;
+    for (let k = -2; k <= 4; k++) { const r = MU + k * SD; if (r < 6 || r > 30) continue; s += `<line x1="${cx(r)}" x2="${cx(r)}" y1="${H - 30}" y2="${H - 40}" stroke="var(--ink)" stroke-width="2"/><text x="${cx(r)}" y="${H - 44}" text-anchor="middle" class="tick" style="fill:var(--ink)">${k > 0 ? '+' : ''}${M(String(k))}</text>`; }
+    s += `<line x1="${cx(MU)}" x2="${cx(MU + SD)}" y1="${H - 35}" y2="${H - 35}" stroke="var(--ink)" stroke-width="3"/></g>`;
     s += `<g class="item" data-item="pin" data-ref="xt"><line x1="${cx(17.85)}" x2="${cx(17.85)}" y1="22" y2="${H - 58}" stroke="var(--ink)" stroke-width="2"/><circle cx="${cx(17.85)}" cy="${H - 30}" r="4" fill="var(--ink)"/><text x="${cx(17.85) + 6}" y="34" class="tick" style="fill:var(--ink)">this biopsy: x̃ = +1.06</text></g>`;
   }
   return s + '</svg>';
@@ -715,7 +771,7 @@ function plotSVG(fn, o) {
   let s = `<svg viewBox="0 0 ${Wd} ${H}"><line x1="${L}" x2="${R}" y1="${Bt}" y2="${Bt}" class="ax"/><line x1="${L}" x2="${L}" y1="${T}" y2="${Bt}" class="ax"/>`;
   (o.yt || []).forEach(v => { s += `<text x="${L - 6}" y="${cy(v) + 4}" text-anchor="end" class="tick">${o.yf ? o.yf(v) : M(String(v))}</text>`; });
   (o.xt || []).forEach(v => { s += `<text x="${cx(v)}" y="${Bt + 16}" text-anchor="middle" class="tick">${M(String(v))}</text>`; });
-  s += `<text x="${R}" y="${T + 8}" text-anchor="end" class="cap">${o.label}</text><path d="${d}" fill="none" stroke="${o.color || 'var(--copper)'}" stroke-width="2.5" ${o.step ? '' : 'stroke-linejoin="round"'}/>`;
+  s += `<text x="${R}" y="${T + 8}" text-anchor="end" class="cap">${o.label}</text><path d="${d}" fill="none" stroke="${o.color || 'var(--ink)'}" stroke-width="2.5" ${o.step ? '' : 'stroke-linejoin="round"'}/>`;
   return s + (o.extra ? o.extra(cx, cy) : '') + '</svg>';
 }
 function guessHTML(s) {
@@ -730,8 +786,8 @@ const SCENES = {
     item(`<div class="s-tex" data-dockfrom="xt"></div><p class="s-note">x̃ counts typical distances (sd<button class="help" data-detour="sd" aria-label="What is sd?">?</button> = 3.52) from the average · <button class="tbtn" data-detour="rescale">why rescale?</button></p>`, 'xtf'),
   knobs: () => item(`<div class="s-tex" data-tex="z = \\htmlClass{r-w}{w}\\cdot\\tilde x + \\htmlClass{r-b}{b}"></div><div id="miniLine"></div><p class="s-note">the score z against x̃ while w turns, then b</p>`, 'zf') +
     `<div class="s-row" data-dockfrom="knobs">` + item(dialHTML('w', 'sensitivity'), 'kw', 'w') + item(dialHTML('b', 'baseline'), 'kb', 'b') + `</div>`,
-  dimmer: () => item(`<div class="s-row" style="align-items:center"><svg viewBox="0 0 300 80" style="max-width:300px"><line x1="10" x2="290" y1="40" y2="40" class="ax"/><text x="10" y="70" class="tick">−6</text><text x="150" y="70" text-anchor="middle" class="tick">0</text><text x="290" y="70" text-anchor="end" class="tick">+6</text><text x="10" y="18" class="cap">score z</text><circle id="zDot" cx="150" cy="40" r="7" fill="var(--copper)"/></svg>
-    <div data-ref="bulb" style="text-align:center;padding:4px 8px"><svg viewBox="0 0 80 90" style="width:80px"><circle id="bulb" cx="40" cy="38" r="28" fill="var(--copper)" fill-opacity="0.5" stroke="var(--ink-3)"/><rect x="30" y="68" width="20" height="14" rx="3" fill="var(--rule-strong)"/></svg><div class="s-note" id="bulbV">p = 0.50</div></div></div>`, 'dimmer') +
+  dimmer: () => item(`<div class="s-row" style="align-items:center"><svg viewBox="0 0 300 80" style="max-width:300px"><line x1="10" x2="290" y1="40" y2="40" class="ax"/><text x="10" y="70" class="tick">−6</text><text x="150" y="70" text-anchor="middle" class="tick">0</text><text x="290" y="70" text-anchor="end" class="tick">+6</text><text x="10" y="18" class="cap">score z</text><circle id="zDot" cx="150" cy="40" r="7" fill="var(--ink)"/></svg>
+    <div data-ref="bulb" style="text-align:center;padding:4px 8px"><svg viewBox="0 0 80 90" style="width:80px"><circle id="bulb" cx="40" cy="38" r="28" fill="var(--ink)" fill-opacity="0.5" stroke="var(--ink-3)"/><rect x="30" y="68" width="20" height="14" rx="3" fill="var(--rule-strong)"/></svg><div class="s-note" id="bulbV">p = 0.50</div></div></div>`, 'dimmer') +
     item(`<div class="s-tex" data-dockfrom="p" data-tex="\\htmlClass{r-p}{p} = \\sigma(z) = \\dfrac{1}{1 + e^{-z}}"></div><p class="s-note">the sigmoid <button class="help" data-detour="e" aria-label="What is e?">?</button></p>`, 'sig'),
   count: () => item(`<p class="s-note"><b>% called right</b> as w turns (b held at its best value, −0.64)</p>` + plotSVG(w => accOf(w, BEST.b) * 100, { x0: 0, x1: 6, y0: 55, y1: 92, xt: [0, 2, 4, 6], yt: [60, 70, 80, 90], yf: v => v + '%', label: 'w', step: true }), 'stairs', 'stairs') +
     item(`<div class="s-row"><div class="s-card"><span class="label">near miss</span><div class="s-big" style="font-size:28px">p = 0.51</div><span class="s-note">wrong: 1 mistake</span></div><div class="s-card"><span class="label">wild miss</span><div class="s-big" style="font-size:28px">p = 0.99</div><span class="s-note">wrong: 1 mistake</span></div></div>`, 'same', 'same'),
@@ -739,20 +795,20 @@ const SCENES = {
     item(`<div class="s-tex" data-dockfrom="J" data-tex="\\begin{aligned}\\htmlClass{r-L}{L} &= -\\ln(\\text{prob. given to the truth})\\\\ \\htmlClass{r-loss}{J} &= \\text{average of } L \\text{ over all 569}\\end{aligned}"></div><p class="s-note"><button class="help" data-detour="ln" aria-label="What is ln?">?</button></p>`, 'Lf') +
     item(plotSVG(w => Jof(w, BEST.b), { x0: 0, x1: 6, y0: 0.25, y1: 0.75, xt: [0, 2, 4, 6], yt: [0.3, 0.5, 0.7], label: 'J as w turns (same b): smooth, with a bottom', h: 120 }), 'bowl', 'loss'),
   land: () => `<div class="mapbox item" data-item="map" data-ref="map" data-dockfrom="map" id="stageMap"></div><p class="s-note item" data-item="mapnote">Each point is one setting of (w, b). Its shade is its average surprise J: lighter is lower.</p>`,
-  fog: () => `<div class="mapbox item" data-item="fog" id="stageMap"></div>` + item('<p class="s-note">One case gives a rough slope, fast. All 569 give the true slope, slowly.</p>', 'one') + '<p class="s-note item" data-item="zero">The model starts from w = 0, b = 0, not from your fit.</p>',
+  fog: () => `<div class="mapbox item" data-item="fog" id="stageMap"></div>` + item('<p class="s-note">Thin arrows: which way one biopsy’s step would go from here, a rough guess, fast. Thick arrow: the direction of their average over all 569, the true downhill, slow.</p>', 'one') + '<p class="s-note item" data-item="zero">The model starts from w = 0, b = 0, not from your fit.</p>',
   ask: s => { const c = caseView(live); return item(`<div class="s-card"><span class="label">Biopsy ${c.k + 1} of ${N}</span><div class="s-big" data-ref="x">${f(c.x)}</div><div class="s-note">mean radius · x̃ = ${fs(c.xt)}</div><div class="s-note" data-ref="p call">model: ${dx(c.call)}, p = ${fp(c.p)}</div><div class="s-note" data-ref="truth">pathology: ${dx(c.y)} (y = ${c.y})</div>${c.p === 0.5 ? '<div class="s-note">p = 0.50 counts as malignant: the cutoff is p ≥ 0.5.</div>' : ''}</div>`, 'askcard') + guessHTML(s); },
   rule: s => { const c = CASES[0], T = v => M(fs(v)).replace('−', '-'), F = v => f(v).replace('−', '-');
     return item(`<div class="s-tex" data-tex="\\begin{aligned} w &\\leftarrow w + \\htmlClass{r-eta}{\\eta}\\cdot\\htmlClass{r-err}{(y-p)}\\cdot\\htmlClass{r-xt}{\\tilde x}\\\\ b &\\leftarrow b + \\htmlClass{r-eta}{\\eta}\\cdot\\htmlClass{r-err}{(y-p)}\\end{aligned}"></div>`, 'rule') +
     `<div class="factors">` + item(`<b>y − p = ${fs(c.err)}</b>which way, how far`, 'f1', 'err', 'factor') + item(`<b>x̃ = ${fs(c.xt)}</b>how much the radius counts`, 'f2', 'xt', 'factor') + item(`<b>η = ${ETA}</b>how bold (step size)`, 'f3', 'eta', 'factor') + `</div>` +
     item(`<div class="s-card" style="padding:8px 14px"><span class="label">what if: a biopsy at exactly the average radius, ${f(MU)}</span><span class="s-note">x̃ = 0, so Δw = 0: w would not move; only b would.</span></div>`, 'ghost', 'ghost') +
     (s.ask ? guessHTML(s) : s.reveal ? item(`<div class="s-tex" data-dockfrom="dw" data-tex="\\begin{aligned}\\Delta w &= ${ETA}\\cdot(${F(c.err)})\\cdot(${F(c.xt)}) = ${T(c.dw)}\\\\ \\Delta b &= ${ETA}\\cdot(${F(c.err)}) = ${T(c.db)}\\end{aligned}"></div>`, 'nums') + revealHTML(qKey(0, 'wdir')) : ''); },
-  step: s => { const c = CASES[live.caseK], key = live.q && +live.q.split(':')[0] === c.k ? live.q : null; return `<div class="mapbox" id="stageLive" data-ref="map"></div>` + item(`<div class="s-card" style="padding:8px 16px" data-ref="step"><span class="label">footstep ${c.k + 1} · radius ${f(c.x)}, ${word(c.y)}</span><div class="s-tex" data-tex="\\Delta w = ${f(c.dw, 3).replace('−', '-')}\\qquad \\Delta b = ${f(c.db, 3).replace('−', '-')}"></div><span class="s-note">error y − p = ${fs(c.err)} · step length ${f(c.len, 3)}</span><span class="s-note" data-ref="dJ">average surprise J: ${c.J0.toFixed(4)} → ${c.J1.toFixed(4)}, ${c.dJ > 0 ? 'up' : 'down'} ${f(Math.abs(c.dJ), 4)}</span>${key && key.endsWith(':LJ') ? `<span class="s-note" data-ref="L">this biopsy’s surprise L: ${f(c.L)} → ${f(c.L1)}</span>` : ''}</div>`, 'stepbox') + (key ? revealHTML(key) : ''); },
+  step: s => { const c = CASES[live.caseK], key = live.q && +live.q.split(':')[0] === c.k ? live.q : null; return `<div class="mapbox" id="stageLive" data-ref="map" data-aspect="${key && key.endsWith(':LJ') ? 0.26 : 0.33}"></div>` + item(`<div class="s-card" style="padding:8px 16px" data-ref="step"><span class="label">footstep ${c.k + 1} · radius ${f(c.x)}, ${word(c.y)}</span><div class="s-tex" data-tex="\\Delta w = ${f(c.dw, 3).replace('−', '-')}\\qquad \\Delta b = ${f(c.db, 3).replace('−', '-')}"></div><span class="s-note">error y − p = ${fs(c.err)} · step length ${f(c.len, 3)}</span><span class="s-note" data-ref="dJ">average surprise J: ${c.J0.toFixed(4)} → ${c.J1.toFixed(4)}, ${c.dJ > 0 ? 'up' : 'down'} ${f(Math.abs(c.dJ), 4)}</span>${key && key.endsWith(':LJ') ? `<span class="s-note" data-ref="L">this biopsy’s surprise L: ${f(c.L)} → ${f(c.L1)}</span>` : ''}</div>`, 'stepbox') + (key ? revealHTML(key) : ''); },
   fast: () => item(`<p class="s-title">40 more biopsies</p><p class="s-note">same loop each time: call, check, one step</p>`, 'fasttitle') + `<div class="mapbox" id="stageLive" data-ref="map"></div>`,
   pair: () => { const a = CASES[44], b = CASES[45]; return item(`<div class="meter" data-ref="pair"><div><span>biopsy ${a.k + 1} (radius ${f(a.x)}): sure and right</span><i style="transform:scaleX(${Math.max(0.004, a.len / b.len).toFixed(3)})"></i><b>${f(a.len, 4)}</b></div><div><span>biopsy ${b.k + 1} (radius ${f(b.x)}): sure and wrong</span><i style="transform:scaleX(1)"></i><b>${f(b.len)}</b></div></div><p class="s-note">length of each step</p>`, 'pair', 'pair'); },
-  three: () => `<div class="mapbox item" data-item="three" id="stageMap"></div><div class="legend3 item" data-item="legend">${[['h1', 0.05, 'var(--ink-2)', 'step size 0.05: creeps', 'dotted'], ['h2', 0.5, 'var(--copper)', '0.5: arrives', 'solid'], ['h3', 5, 'var(--ink-3)', '5: overshoots', 'dashed']].map(([r, e, c, t, ls]) => `<button type="button" data-ref="${r}" data-eta="${e}" data-dash="${ls}" style="color:${c}"><i style="border-top-style:${ls}"></i>${t}</button>`).join('')}</div>`,
+  three: () => `<div class="mapbox item" data-item="three" id="stageMap"></div><div class="legend3 item" data-item="legend">${[['h1', 0.05, 'var(--ink-2)', 'step size 0.05: creeps', 'dotted'], ['h2', 0.5, 'var(--ink)', '0.5: ends near the bottom', 'solid'], ['h3', 5, 'var(--ink-3)', '5: overshoots', 'dashed']].map(([r, e, c, t, ls]) => `<button type="button" data-ref="${r}" data-eta="${e}" data-dash="${ls}" style="color:${c}"><i style="border-top-style:${ls}"></i>${t}</button>`).join('')}</div>`,
   done: () => item(`<div class="s-card"><span class="label">after all 569 footsteps</span><div class="s-big" data-ref="flip">flip radius ${f(flipOf(...PATH[N]))}</div><div class="s-note" data-ref="acc">${pct(stat(...PATH[N]).acc)} right · J = ${stat(...PATH[N]).J.toFixed(3)}</div><div class="s-note">bottom of the valley (all 569 at once): flip radius ${f(flipOf(BEST.w, BEST.b))}, ${pct(stat(BEST.w, BEST.b).acc)}, J = ${stat(BEST.w, BEST.b).J.toFixed(3)}</div>${handFit() ? `<div class="s-note">your best fit by hand: J = ${handFit().J.toFixed(3)}, ${pct(handFit().acc)}</div>` : ''}</div>`, 'final'),
 };
-function dialHTML(id, gloss) { return `<div class="dial"><svg viewBox="0 0 74 74"><circle cx="37" cy="37" r="30" fill="var(--sheet)" stroke="var(--rule-strong)" stroke-width="2"/><line id="needle-${id}" x1="37" y1="37" x2="37" y2="12" stroke="var(--copper)" stroke-width="3" stroke-linecap="round"/></svg><b>${id} = <span id="dv-${id}">0</span></b><span>${gloss}</span></div>`; }
+function dialHTML(id, gloss) { return `<div class="dial"><svg viewBox="0 0 74 74"><circle cx="37" cy="37" r="30" fill="var(--sheet)" stroke="var(--rule-strong)" stroke-width="2"/><line id="needle-${id}" x1="37" y1="37" x2="37" y2="12" stroke="var(--ink)" stroke-width="3" stroke-linecap="round"/></svg><b>${id} = <span id="dv-${id}">0</span></b><span>${gloss}</span></div>`; }
 
 function buildStage(s) {
   stageToken++;
@@ -770,8 +826,8 @@ function stageMap(s, nRace) {
   const host = $('stageMap'); if (!host) return;
   if (s.stage === 'three') {
     const n = nRace ?? N;
-    drawMap(host, { id: 's3', bounds: [-1, 11, -7, 7], aspect: 0.6, bottom: true, start: true, paths: [{ pts: PATHS[5], n, color: 'var(--ink-3)', ref: 'h3', width: 1.2, opacity: 0.6, dash: '5 3' }, { pts: PATHS[0.05], n, color: 'var(--ink-2)', ref: 'h1', width: 2.5, dash: '1.5 3' }, { pts: PATHS[0.5], n, color: 'var(--copper)', ref: 'h2', width: 2.5 }] });
-  } else drawMap(host, { id: 's', bounds: PANEL_BD, aspect: 0.62, items: true, bottom: true, start: true, you: s.stage === 'land', hiker: s.stage === 'fog' ? [0, 0] : null, fog: s.stage === 'fog', arrow: s.stage === 'fog' });
+    drawMap(host, { id: 's3', bounds: [-1, 11, -7, 7], aspect: 0.6, bottom: true, start: true, paths: [{ pts: PATHS[5], n, color: 'var(--ink-3)', ref: 'h3', width: 1.2, opacity: 0.6, dash: '5 3' }, { pts: PATHS[0.05], n, color: 'var(--ink-2)', ref: 'h1', width: 2.5, dash: '1.5 3' }, { pts: PATHS[0.5], n, color: 'var(--ink)', ref: 'h2', width: 2.5 }] });
+  } else drawMap(host, { id: 's', bounds: PANEL_BD, items: true, bottom: true, start: true, you: s.stage === 'land', hiker: s.stage === 'fog' ? [0, 0] : null, fog: s.stage === 'fog', arrow: s.stage === 'fog', aspect: s.stage === 'fog' ? 0.56 : 0.62 });
   const named = new Set(clipsOf(s).flatMap(id => (VOICE[id].D || []).map(d => d[1])));
   host.querySelectorAll('svg [data-item]').forEach(e => { if (!named.has(e.dataset.item) || drawn.has(e.dataset.item)) e.classList.add('on'); });
 }
@@ -846,7 +902,7 @@ const motionOK = () => !(window.matchMedia && matchMedia('(prefers-reduced-motio
 const sound = () => unlocked && !muted && typeof Audio === 'function';
 
 // ---- Highlights: elements whose data-ref names the phrase being spoken get the highlight.
-const REFS = ['guess', 'dJ', 'x', 'dots', 'ruler', 'xt', 'w', 'b', 'bulb', 'p', 'call', 'stairs', 'same', 'm1', 'm2', 'm3', 'L', 'loss', 'map', 'you', 'bottom', 'arrow', 'err', 'ghost', 'eta', 'step', 'truth', 'mark', 'pair', 'h1', 'h2', 'h3', 'flip', 'acc', 'next', 'rest'];
+const REFS = ['guess', 'dJ', 'uphill', 'one', 'x', 'dots', 'ruler', 'xt', 'w', 'b', 'bulb', 'p', 'call', 'stairs', 'same', 'm1', 'm2', 'm3', 'L', 'loss', 'map', 'you', 'bottom', 'arrow', 'err', 'ghost', 'eta', 'step', 'truth', 'mark', 'pair', 'h1', 'h2', 'h3', 'flip', 'acc', 'next', 'rest'];
 (() => {
   const css = REFS.map(r => `body[data-hl~="${r}"] [data-ref~="${r}"]:not(svg *){outline-color:var(--copper);background-color:var(--copper-wash);animation:hlpulse .7s ease-out}` +
     `body[data-hl~="${r}"] svg [data-ref~="${r}"], body[data-hl~="${r}"] .katex [data-ref~="${r}"]{filter:drop-shadow(0 0 3px rgb(166 77 29 / 0.85))}` +
@@ -948,7 +1004,7 @@ function waitsForUser(s) { return s.ask || s.hands; }
 let instant = false;
 function enter(viaMark) {
   const s = steps[pos], i = pos;
-  stopRun(); clearTimer(); drawn.clear(); hideCoach();
+  stopRun(); clearTimer(); drawn.clear(); hideCoach(); inspectK = null;
   const prev = live, w = clone(worldAt(i));
   instant = !sound() && !playing;
   showWorld(w, prev && prev.n !== null && w.n !== null && w.n >= prev.n ? prev : null);
